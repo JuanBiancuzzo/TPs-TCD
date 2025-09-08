@@ -116,22 +116,23 @@ class Huffman:
             texto.append(self.nodoPrincipal.descodificar(secuencia))
         return texto
 
-huff = Huffman({
-    "A": 2,
-    "D": 5,
-    "B": 3,
-    "E": 1,
-})
+if __name__ == "__main__":
+    texto = "ADBADEDBBDD"
+    huff = Huffman({
+        "A": texto.count("A"),
+        "D": texto.count("D"),
+        "B": texto.count("B"),
+        "E": texto.count("E"),
+    })
 
-texto = "ADBADEDBBDD"
-codigo = huff.encodear(texto)
-destexto = "".join("1" if bit else "0" for bit in codigo)
+    codigo = huff.encodear(texto)
+    destexto = "".join("1" if bit else "0" for bit in codigo)
 
-print( "Deberia ser: 10101110101000111100")
-print(f"y es:        {destexto}")
+    print( "Deberia ser: 10101110101000111100") # Lo saque de la pagina https://huffman-coding-online.vercel.app/
+    print(f"y es:        {destexto}")
 
-print("")
+    print("")
 
-desdestexto = "".join(huff.descodificar(codigo))
-print(f"Deberia ser: {texto}")
-print(f"y es:        {desdestexto}")
+    desdestexto = "".join(huff.descodificar(codigo))
+    print(f"Deberia ser: {texto}")
+    print(f"y es:        {desdestexto}")
