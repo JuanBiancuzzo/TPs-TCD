@@ -117,6 +117,7 @@ class Huffman:
         return texto
 
 if __name__ == "__main__":
+    # Aca podria ir unas pruebas mas en serio
     texto = "ADBADEDBBDD"
     huff = Huffman({
         "A": texto.count("A"),
