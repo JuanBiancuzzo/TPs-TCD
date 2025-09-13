@@ -9,14 +9,14 @@ from pathlib import Path
 import numpy as np
 
 # Módulos del proyecto
+import pipeline
+import file            # Read file (Módulo A)
 import source          # Huffman (Módulo B)
 import modulation      # TODO (Módulo C)
 import channel         # TODO (Módulo D)
 import cod_channel     # TODO (Módulo E)
 import viz             # TODO (gráficos)
-import utils
 import report
-from report import generate_report_files
 from utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
 
 print(f"\n{MAGENTA}¡Bienvenido al TP TA137!{RESET}\n")
@@ -44,12 +44,14 @@ def dry_run(path_in: str, out_prefix: str):
     Copia el archivo de entrada a la salida sin procesar.
     Útil para validar estructura de I/O.
     """
-    text = Path(path_in).read_text(encoding="utf-8")
-    out_path = Path(f"{out_prefix}_recibido.txt")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(text, encoding="utf-8")
+    pipe = pipeline.Pipeline([
+        file.File(out_prefix),
+    ])
+
+    path_out = pipe.run(path_in)
+    
     print(f"\n{BLUE}[DryRun]{RESET} Se copió el archivo de entrada a la salida (sin procesar).\n")
-    print(f"{GREEN}[Salida]{RESET} {out_path}\n")
+    print(f"{GREEN}[Salida]{RESET} {path_out}\n")
 
 def run_huffman_only(path_in: str, out_prefix: str):
     """
@@ -59,54 +61,14 @@ def run_huffman_only(path_in: str, out_prefix: str):
       - guarda recibido
       - genera reporte de tabla de códigos y métricas
     """
-    text = Path(path_in).read_text(encoding="utf-8")
 
-    # Fuente (Huffman)
-    enc, dec = source.build_huffman_dict(text)
-    bits_tx  = source.encode_text(text, enc)
-    texto_rx = source.decode_bits(bits_tx, dec)
+    pipe = pipeline.Pipeline([
+        file.File(out_prefix),
+        source.Source(),
+    ], report.Reporter(out_prefix))
 
-    # Mapeo símbolo->código como string (para reportes)
-    encmap = report._encmap_ref(enc)
-
-    # Muestra: línea -> binario -> decod
-    sample_line     = report._first_nonempty_line(text)[:120]
-    sample_bits     = source.encode_text(sample_line, enc)
-    sample_bits_str = "".join(str(b) for b in sample_bits)
-    sample_dec      = source.decode_bits(sample_bits, dec)
-
-    # Salida principal
-    out_path = Path(f"{out_prefix}_recibido.txt")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(texto_rx, encoding="utf-8")
-
-    # Métricas para informe
-    probs = source.symbol_probs(text)
-    H     = source.entropy(probs)
-    Lavg  = source.avg_code_length(probs, enc)
-    eff   = utils.efficiency(H, Lavg)
-    Lfix  = utils.fixed_length_bits(len(probs))
-
-    # Archivos de reporte
-    rep = generate_report_files(text, encmap, out_prefix)
-    md_append = [
-        "\n---\n",
-        "#### Muestra (línea → binario → decodificada)\n",
-        f"- Línea: `{sample_line}`",
-        f"- Binario: `{sample_bits_str}`",
-        f"- Decodificada: `{sample_dec}`",
-        "\n#### Tabla CSV generada",
-        f"- `{rep['csv']}`",
-    ]
-    Path(rep["metrics_md"]).write_text(
-        Path(rep["metrics_md"]).read_text(encoding="utf-8") + "\n".join(md_append),
-        encoding="utf-8"
-    )
-
-    print(f"{BLUE}[Reporte]{RESET} CSV → {rep['csv']}")
-    print(f"{BLUE}[Reporte]{RESET} Métricas → {rep['metrics_md']}")
-    print(f"{BLUE}[Fuente/Huffman]{RESET} H={H:.4f} | Lavg={Lavg:.4f} | η={eff*100:.2f}% | L_fijo≈{Lfix}\n")
-    print(f"{GREEN}[Salida]{RESET} {out_path}\n")
+    path_out = pipe.run(path_in)
+    print(f"{GREEN}[Salida]{RESET} {path_out}\n")
 
 def main():
     """
