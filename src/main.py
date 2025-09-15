@@ -46,12 +46,12 @@ def dry_run(path_in: str, out_prefix: str):
     """
     pipe = pipeline.Pipeline([
         file.File(out_prefix),
-    ])
+    ], report.Reporter(out_prefix))
 
     path_out = pipe.run(path_in)
     
-    print(f"\n{BLUE}[DryRun]{RESET} Se copió el archivo de entrada a la salida (sin procesar).\n")
-    print(f"{GREEN}[Salida]{RESET} {path_out}\n")
+    print(f"{BLUE}[DryRun]{RESET} Se copió el archivo de entrada a la salida (sin procesar).")
+    print(f"{GREEN}[Salida]{RESET} {path_out}")
 
 def run_huffman_only(path_in: str, out_prefix: str):
     """
