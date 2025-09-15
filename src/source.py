@@ -88,11 +88,11 @@ class Source(EncoderDecoder):
         Lfix  = utils.fixed_length_bits(len(self.probs))
         Lmin =  min([len("".join(str(b) for b in code)) for _, code in self.encoder.items()])
 
-        headers = ["char", "prob", "code", "len"]
+        headers = ["char", "prob", "code", "len", "ascii"]
         data = []
         for ch, p in sorted(self.probs.items(), key=lambda kv: (-kv[1], kv[0])):
             code = "".join(str(b) for b in self.encoder[ch])
-            data.append([_printable(ch), f"{p:.6f}", code, str(len(code))])
+            data.append([_printable(ch), f"{p:.6f}", code, str(len(code)), f"{ord(ch):b}"])
 
         result_path = reporter.report_results("tabla_huffman.csv", headers, data)
         

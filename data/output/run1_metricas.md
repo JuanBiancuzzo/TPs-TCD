@@ -16,4 +16,4 @@
 - Decodificada: `ADBADEDBBDD`
 
 #### Tabla CSV generada
-- `data/output/run1_tabla_huffman.csv`
+- `data\output\run1_tabla_huffman.csv`
