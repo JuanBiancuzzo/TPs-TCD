@@ -89,28 +89,16 @@ def main():
         return
 
     # ---------- Pipeline completo (TODO C/D/E) ----------
-    print("[Fuente] Construyendo código Huffman...")
-    text = Path(args.path_in).read_text(encoding="utf-8")
-    enc, dec = source.build_huffman_dict(text)
-    bits_tx  = source.encode_text(text, enc)
+    pipe = pipeline.Pipeline([
+        file.File(out_prefix=args.out_prefix),
+        source.Source(),
+        modulation.Modulation(scheme="BPSK", M=2),
+        cod_channel.ChannelCoding(tamanio=0, matriz_generadora=None),
+        channel.Channel(eb_n0_db=0, with_fading=True, rng=None),
+    ], report.Reporter(args.out_prefix))
 
-    print("[Modulación] Mapeando bits a símbolos (ej. BPSK)...")
-    bits_tx_arr = np.array(bits_tx, dtype=np.uint8)
-    sym_tx, Es, Eb = modulation.map_bits(bits_tx_arr, scheme="BPSK", M=2)
-
-    print(f"{BLUE}[Canal]{RESET} Aplicando AWGN/atenuación...")
-    sym_rx = channel.aplicar_canal(sym_tx, eb_n0_db=args.ebn0, with_fading=True)
-
-    print(f"{BLUE}[Demodulación]{RESET} Símbolos -> bits...")
-    bits_rx = modulation.demap_symbols(sym_rx, scheme="BPSK", M=2)
-
-    print(f"{BLUE}[Fuente]{RESET} Decodificando Huffman...")
-    texto_rx = source.decode_bits(bits_rx.tolist(), dec)
-
-    out_path = Path(f"{args.out_prefix}_recibido.txt")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(texto_rx, encoding="utf-8")
-    print(f"{GREEN}[Salida]{RESET} Texto recibido -> {out_path}\n")
+    path_out = pipe.run(args.path_in)
+    print(f"{GREEN}[Salida]{RESET} Texto recibido -> {path_out}\n")
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,5 @@
 from collections import Counter
+import numpy as np
 from math import log2
 from typing import Dict, List, Tuple, Any
 import heapq
@@ -34,7 +35,7 @@ class Source(EncoderDecoder):
         if reporter is not None:
             self._report(text, reporter)
 
-        return self._encode_text(text)
+        return np.array(self._encode_text(text), dtype=np.uint8)
 
     def decode(self, bits: List[Bit]) -> str:
         """
@@ -74,6 +75,8 @@ class Source(EncoderDecoder):
         return bits
 
     def _report(self, text: str, reporter: Reporter):
+        reporter.append_line("Fuente/Huffman", utils.BLUE, "Construyendo código Huffman")
+
         sample_line     = _first_nonempty_line(text)[:120]
         sample_bits     = self._encode_text(sample_line)
         sample_bits_str = "".join(str(b) for b in sample_bits)

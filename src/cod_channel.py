@@ -4,13 +4,16 @@
 import numpy as np
 from typing import Tuple
 from report import Reporter
+from utils import BLUE
 
 class ChannelCoding:
     def __init__(self, tamanio: int, matriz_generadora: np.ndarray):
         self.n = tamanio
         self.G = matriz_generadora
 
-    def encode(self, bits: np.ndarray, reporter: Reporter) -> np.ndarray:
+    def encode(self, bits: np.ndarray, reporter: Reporter | None) -> np.ndarray:
+        if reporter is not None:
+            reporter.append_line("Codificación", BLUE, "Creando códigos de lineas")
         # Aca deberiamos calcular H y la tabla de sindromes
         raise NotImplementedError("TODO: codificar palabra (n,k)")
 
