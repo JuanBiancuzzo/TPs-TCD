@@ -3,19 +3,31 @@
 
 import numpy as np
 from typing import Tuple
+from report import Reporter
+from utils import BLUE
 
-def generar_matriz_H(G: np.ndarray) -> np.ndarray:
-    raise NotImplementedError("TODO: calcular H a partir de G")
+class ChannelCoding:
+    def __init__(self, tamanio: int, matriz_generadora: np.ndarray):
+        self.n = tamanio
+        self.G = matriz_generadora
 
-def tabla_sindromes(H: np.ndarray) -> dict:
-    raise NotImplementedError("TODO: construir tabla de síndromes")
+    def encode(self, bits: np.ndarray, reporter: Reporter | None) -> np.ndarray:
+        if reporter is not None:
+            reporter.append_line("Codificación", BLUE, "Creando códigos de lineas")
+        # Aca deberiamos calcular H y la tabla de sindromes
+        raise NotImplementedError("TODO: codificar palabra (n,k)")
 
-def codificar(bits: np.ndarray, G: np.ndarray) -> np.ndarray:
-    raise NotImplementedError("TODO: codificar palabra (n,k)")
+    def decode(self, codigo: np.ndarray) -> np.ndarray:
+        # Aca usariamos H y la tabla de sindromes que calculamos antes
+        raise NotImplementedError("TODO: decodificar con detección/corrección de errores")
 
-def decodificar(codigo: np.ndarray, H: np.ndarray, sindromes: dict) -> np.ndarray:
-    raise NotImplementedError("TODO: decodificar con detección/corrección de errores")
+    def generar_matriz_H(self) -> np.ndarray:
+        raise NotImplementedError("TODO: calcular H a partir de G")
 
-def dist_minima(G: np.ndarray) -> Tuple[int, int, int]:
-    """Devuelve (dmin, e, t)"""
-    raise NotImplementedError("TODO: calcular distancia mínima, errores detectables (e) y corregibles (t)")
+    def tabla_sindromes(H: np.ndarray) -> dict:
+        raise NotImplementedError("TODO: construir tabla de síndromes")
+
+    def dist_minima(self) -> Tuple[int, int, int]:
+        """Devuelve (dmin, e, t)"""
+        raise NotImplementedError("TODO: calcular distancia mínima, errores detectables (e) y corregibles (t)")
+

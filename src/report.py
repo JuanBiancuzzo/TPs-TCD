@@ -1,6 +1,39 @@
 from collections import Counter
 from math import log2, ceil
 from pathlib import Path
+from typing import List, Any
+from utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
+
+class Reporter:
+    def __init__(self, out_prefix: str, encoding: str = "utf-8"):
+        self.out_prefix = out_prefix
+        self.encoding = encoding
+
+        self.lines = []
+        self.metrics = Path(f"{out_prefix}_metricas.md")
+        self.metrics.write_text("")
+
+    def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]):
+        csv_path = Path(f"{self.out_prefix}_{file_name}")
+        with csv_path.open("w", encoding=self.encoding) as f:
+            f.write(",".join(headers) + "\n")
+            for line in data:
+                f.write(",".join(line) + "\n")
+
+        self.append_line("Reporter", BLUE, f"CSV → {csv_path}")
+        return csv_path
+
+    def append_metrics(self, lines: str):
+        self.metrics.write_text(
+            self.metrics.read_text(encoding=self.encoding) + lines, encoding=self.encoding
+        )
+
+    def append_line(self, from_encoder: str, color: str, line: str):
+        self.lines.append(f"{color}[{from_encoder}]{RESET} {line}")
+
+    def show(self):
+        for line in self.lines:
+            print(line)
 
 def _printable(ch: str) -> str:
     # Representación legible para espacios y controles
@@ -35,55 +68,3 @@ def _first_nonempty_line(text: str) -> str:
         if ln.strip() != "":
             return ln
     return text.splitlines()[0] if "\n" in text else text
-
-def generate_report_files(text: str, encmap: dict[str, str], out_prefix: str):
-    out_dir = Path(out_prefix).parent
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    # Probabilidades
-    cnt = Counter(text)
-    total = sum(cnt.values()) or 1
-    probs = {ch: cnt[ch]/total for ch in cnt.keys()}
-
-    # Métricas
-    H = _entropy_from_probs(probs)
-    Lavg = _avg_len(probs, encmap)
-    Lmin = min(len(c) for c in encmap.values()) if encmap else 0
-    eff = H / Lavg if Lavg > 0 else 0.0
-    Lfix = _fixed_length_bits(len(probs))
-
-    # 1) Tabla CSV: char, prob, code, len
-    csv_path = Path(f"{out_prefix}_tabla_huffman.csv")
-    with csv_path.open("w", encoding="utf-8") as f:
-        f.write("char,prob,code,len\n")
-        for ch, p in sorted(probs.items(), key=lambda kv: (-kv[1], kv[0])):
-            code = encmap.get(ch, "")
-            f.write(f"{_printable(ch)},{p:.6f},{code},{len(code)}\n")
-
-    # 2) Muestra: una línea → bits → decodif (se completa afuera)
-    sample_path = Path(f"{out_prefix}_muestra.txt")
-    sample_line = _first_nonempty_line(text)[:120]  # evita líneas gigantes
-    sample_path.write_text(sample_line, encoding="utf-8")
-
-    # 3) Métricas: MD sencillo (apto para copiar a LaTeX)
-    md_path = Path(f"{out_prefix}_metricas.md")
-    md = []
-    md.append("### Resultados Huffman\n")
-    md.append(f"- Entropía H: **{H:.4f}** bits/símbolo")
-    md.append(f"- Longitud mínima (Lmin): **{Lmin}** bits")
-    md.append(f"- Longitud promedio (L̄): **{Lavg:.4f}** bits/símbolo")
-    md.append(f"- Eficiencia (η = H/L̄): **{eff*100:.2f}%**")
-    md.append(f"- Código de longitud fija (p.ej. ASCII para k símbolos): **{Lfix}** bits/símbolo")
-    md.append(f"- Alfabeto (k): **{len(probs)}** símbolos")
-    md_path.write_text("\n".join(md) + "\n", encoding="utf-8")
-
-    return {
-        "csv": str(csv_path),
-        "sample_line": sample_line,
-        "metrics_md": str(md_path),
-        "H": H,
-        "Lavg": Lavg,
-        "Lmin": Lmin,
-        "eff": eff,
-        "Lfix": Lfix,
-    }
