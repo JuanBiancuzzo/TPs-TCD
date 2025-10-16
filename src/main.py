@@ -95,13 +95,10 @@ def main():
         cod_channel.ChannelCoding(tamanio=0, matriz_generadora=None),
         modulation.Modulation(scheme = modulation.Esquema.FSK, M = 2),
         channel.Channel(eb_n0_db=0, with_fading=True, rng=None),
-    ], report.ReporterTerminal())
+    ], report.ReporterTerminal(args.out_prefix))
 
     path_out = pipe.run(args.path_in)
     print(f"{GREEN}[Salida]{RESET} Texto recibido -> {path_out}\n")
 
 if __name__ == "__main__":
-    # main()
-    pipeline.Pipeline([
-        modulation.Modulation(scheme = modulation.Esquema.FSK, M = 4),
-    ], report.EmptyReporter()).run(np.array([0, 0, 1, 1, 0, 1, 1, 0]))
+    main()
