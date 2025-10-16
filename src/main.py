@@ -46,7 +46,7 @@ def dry_run(path_in: str, out_prefix: str):
     """
     pipe = pipeline.Pipeline([
         file.File(out_prefix),
-    ], report.Reporter(out_prefix))
+    ], report.ReporterTerminal(out_prefix))
 
     path_out = pipe.run(path_in)
     
@@ -65,7 +65,7 @@ def run_huffman_only(path_in: str, out_prefix: str):
     pipe = pipeline.Pipeline([
         file.File(out_prefix),
         source.Source(),
-    ], report.Reporter(out_prefix))
+    ], report.ReporterTerminal(out_prefix))
 
     path_out = pipe.run(path_in)
     print(f"{GREEN}[Salida]{RESET} {path_out}\n")
@@ -92,13 +92,16 @@ def main():
     pipe = pipeline.Pipeline([
         file.File(out_prefix=args.out_prefix),
         source.Source(),
-        modulation.Modulation(scheme="BPSK", M=2),
         cod_channel.ChannelCoding(tamanio=0, matriz_generadora=None),
+        modulation.Modulation(scheme = modulation.Esquema.FSK, M = 2),
         channel.Channel(eb_n0_db=0, with_fading=True, rng=None),
-    ], report.Reporter(args.out_prefix))
+    ], report.ReporterTerminal())
 
     path_out = pipe.run(args.path_in)
     print(f"{GREEN}[Salida]{RESET} Texto recibido -> {path_out}\n")
 
 if __name__ == "__main__":
-    main()
+    # main()
+    pipeline.Pipeline([
+        modulation.Modulation(scheme = modulation.Esquema.FSK, M = 4),
+    ], report.EmptyReporter()).run(np.array([0, 0, 1, 1, 0, 1, 1, 0]))
