@@ -93,7 +93,7 @@ def main():
         file.File(out_prefix=args.out_prefix),
         source.Source(),
         cod_channel.ChannelCoding(tamanio=0, matriz_generadora=None),
-        modulation.Modulation(scheme = modulation.Esquema.FSK, M = 2),
+        modulation.Modulation(scheme = modulation.Scheme.FSK, M = 2),
         channel.Channel(eb_n0_db=0, with_fading=True, rng=None),
     ], report.ReporterTerminal(args.out_prefix))
 

@@ -14,11 +14,14 @@ class Modulation:
     def __init__(self, scheme: Scheme = Scheme.PSK, M: int = 2):
         self.scheme = scheme
         self.M = M
+        self.N = 0
         self.k = int(np.log2(M))
         self.addedBits = 0
 
+        self.batchs = 1000
         if scheme == Scheme.FSK:
             self.symbols = np.eye(M) # Tendría que ser sqrt(E_s)
+            self.N = M
 
         else: 
             raise NotImplementedError(f"TODO: el esquema {self.scheme} no esta implementado")
@@ -27,35 +30,52 @@ class Modulation:
     def encode(self, bits: np.ndarray, reporter: Reporter) -> np.ndarray: 
         # Calcular la energia media de simbolo y de bit
         mapping = None
-        cantidadSimbolos = int(np.ceil(len(bits) / self.k))
+        numSymbols = int(np.ceil(len(bits) / self.k))
         self.addedBits = len(bits) % self.k
 
         if self.scheme == Scheme.FSK:
             reporter.append_line("Modulación", BLUE, f"Mapeando de {self.M}-FSK con {self.k} bits a símbolos")
-            mapping = np.zeros((cantidadSimbolos, self.M))
 
-        for pos in range(cantidadSimbolos):
+        mapping = np.zeros((numSymbols, self.N))
+
+        for pos in range(numSymbols):
             num = 0
-            numElements = self.k if pos * (self.k + 1) < len(bits) else self.addedBits 
+            numElements = self.k if (pos + 1) * self.k < len(bits) else self.addedBits 
             for i in range(numElements):
                 num += bits[pos * self.k + i] << i
-
             mapping[pos] += self.symbols[num]
 
         return mapping
 
     def decode(self, sym: np.ndarray) -> np.ndarray:
-        if self.scheme == Esquema.FSK:
-            return self.decodeFSK(sym)
+        numBatchs = int(np.ceil(len(sym) / self.batchs))
+        bits = np.zeros(self.k * len(sym), dtype = int)
 
-        raise NotImplementedError(f"TODO: el esquema {self.scheme} no esta implementado")
+        for i in range(numBatchs):
+            endBatchElement = numBatchs * (i + 1)
+            if i >= numBatchs - 1: # el ultimo batch
+                endBatchElement = len(sym)
+            batch = sym[numBatchs * i : endBatchElement]
 
-    def decodeFSK(self, sym: np.ndarray) -> np.ndarray:
-        simbolos = np.argmax(sym, axis = 1)
-        mapeo = np.zeros(self.k * len(simbolos))
+            dif1 = np.array([ 
+                np.repeat(self.symbols[:, i].reshape((-1, 1)), len(batch), axis = 1)
+                for i in range(self.N) 
+            ])
 
-        for pos, simbolo in enumerate(simbolos):
-            for i in range(self.k):
-                mapeo[pos * self.k + i] = 1 & (simbolo >> i)
+            dif2 = np.array([ 
+                np.repeat(batch[:, i].reshape((-1, 1)), self.M, axis = -1).T
+                for i in range(self.N) 
+            ])
 
-        return mapeo
+            diferencias = dif1 - dif2
+            norms = np.sum(
+                np.array([ np.multiply(diferencias[i, :, :], diferencias[i, :, :]) for i in range(self.N) ]),
+                axis = 0
+            )
+
+            for pos, simbolo in enumerate(np.argmin(norms, axis = 0)):
+                for j in range(self.k):
+                    # Transformamos el numero del simbolo a la representacion del bit
+                    bits[i * self.batchs + pos * self.k + j] = 1 & (simbolo >> i)
+        
+        return bits[:len(bits) - self.addedBits]
