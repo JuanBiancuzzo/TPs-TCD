@@ -6,35 +6,43 @@ from report import Reporter
 from utils import BLUE
 from enum import Enum
 
-class Esquema(Enum):
+class Scheme(Enum):
     FSK = "M-FSK"
     PSK = "M-PSK"
 
 class Modulation:
-    def __init__(self, scheme: Esquema = Esquema.PSK, M: int = 2):
+    def __init__(self, scheme: Scheme = Scheme.PSK, M: int = 2):
         self.scheme = scheme
         self.M = M
         self.k = int(np.log2(M))
+        self.addedBits = 0
+
+        if scheme == Scheme.FSK:
+            self.symbols = np.eye(M) # Tendría que ser sqrt(E_s)
+
+        else: 
+            raise NotImplementedError(f"TODO: el esquema {self.scheme} no esta implementado")
+
 
     def encode(self, bits: np.ndarray, reporter: Reporter) -> np.ndarray: 
         # Calcular la energia media de simbolo y de bit
-        if self.scheme == Esquema.FSK:
-            return self.encodeFSK(bits, reporter)
+        mapping = None
+        cantidadSimbolos = int(np.ceil(len(bits) / self.k))
+        self.addedBits = len(bits) % self.k
 
-        raise NotImplementedError(f"TODO: el esquema {self.scheme} no esta implementado")
+        if self.scheme == Scheme.FSK:
+            reporter.append_line("Modulación", BLUE, f"Mapeando de {self.M}-FSK con {self.k} bits a símbolos")
+            mapping = np.zeros((cantidadSimbolos, self.M))
 
-    def encodeFSK(self, bits: np.ndarray, reporter: Reporter) -> np.ndarray:
-        reporter.append_line("Modulación", BLUE, f"Mapeando de {self.M}-FSK con {self.k} bits a símbolos")
+        for pos in range(cantidadSimbolos):
+            num = 0
+            numElements = self.k if pos * (self.k + 1) < len(bits) else self.addedBits 
+            for i in range(numElements):
+                num += bits[pos * self.k + i] << i
 
-        mapeo = np.zeros((len(bits) // self.k, self.M))
+            mapping[pos] += self.symbols[num]
 
-        for pos in range(len(bits) // self.k):
-            numeroSimbolo = 0
-            for i in range(self.k):
-                numeroSimbolo += bits[pos * self.k + i] << i
-            mapeo[pos, numeroSimbolo] = 1
-
-        return mapeo
+        return mapping
 
     def decode(self, sym: np.ndarray) -> np.ndarray:
         if self.scheme == Esquema.FSK:
