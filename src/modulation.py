@@ -10,6 +10,7 @@ class Scheme(Enum):
     FSK = "M-FSK"
     PSK = "M-PSK"
 
+# Vamos a tomar E_b = 1
 class Modulation:
     def __init__(self, scheme: Scheme = Scheme.PSK, M: int = 2):
         self.scheme = scheme
@@ -20,12 +21,12 @@ class Modulation:
 
         self.batchs = 1000
         if scheme == Scheme.FSK:
-            self.symbols = np.eye(M) # Tendría que ser sqrt(E_s)
+            # Como E_b = 1 entonces E_s = k * E_b = k => sqrt(E_s) = sqrt(k)
+            self.symbols = np.sqrt(self.k) * np.eye(M)
             self.N = M
 
         else: 
             raise NotImplementedError(f"TODO: el esquema {self.scheme} no esta implementado")
-
 
     def encode(self, bits: np.ndarray, reporter: Reporter) -> np.ndarray: 
         # Calcular la energia media de simbolo y de bit
