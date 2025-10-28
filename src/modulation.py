@@ -58,21 +58,7 @@ class Modulation:
                 endBatchElement = len(sym)
             batch = sym[numBatchs * i : endBatchElement]
 
-            dif1 = np.array([ 
-                np.repeat(self.symbols[:, i].reshape((-1, 1)), len(batch), axis = 1)
-                for i in range(self.N) 
-            ])
-
-            dif2 = np.array([ 
-                np.repeat(batch[:, i].reshape((-1, 1)), self.M, axis = -1).T
-                for i in range(self.N) 
-            ])
-
-            diferencias = dif1 - dif2
-            norms = np.sum(
-                np.array([ np.multiply(diferencias[i, :, :], diferencias[i, :, :]) for i in range(self.N) ]),
-                axis = 0
-            )
+            norms = np.sum((self.symbols[:, :, np.newaxis] - batch[:, :, np.newaxis].T) ** 2, axis = 1)
 
             for pos, simbolo in enumerate(np.argmin(norms, axis = 0)):
                 for j in range(self.k):
