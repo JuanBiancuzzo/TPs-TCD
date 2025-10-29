@@ -10,10 +10,11 @@ class Channel:
         self.with_fading = with_fading
         self.rng = rng
 
-    def encode(self, sym: np.ndarray, reporter: Reporter | None) -> np.ndarray:
-        if reporter is not None:
-            reporter.append_line("Canal", BLUE, "Aplicando AWGN/atenuación")
-        raise NotImplementedError("TODO: aplicar_canal (AWGN + atenuación)")
+    def encode(self, sym: np.ndarray, reporter: Reporter) -> np.ndarray:
+        reporter.append_line("Canal", BLUE, "Aplicando AWGN/atenuación")
+
+        # TODO: aplicar_canal (AWGN)
+        return sym
 
     def decode(self, sym: np.ndarray) -> np.ndarray:
         return sym

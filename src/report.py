@@ -1,10 +1,42 @@
+from abc import ABC, abstractmethod
+
 from collections import Counter
 from math import log2, ceil
 from pathlib import Path
 from typing import List, Any
 from utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
 
-class Reporter:
+class Reporter(ABC):
+    @abstractmethod
+    def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]):
+        pass
+
+    @abstractmethod
+    def append_metrics(self, lines: str):
+        pass
+
+    @abstractmethod
+    def append_line(self, from_encoder: str, color: str, line: str):
+        pass
+
+    @abstractmethod
+    def show(self):
+        pass
+
+class EmptyReporter(Reporter):
+    def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]):
+        pass
+
+    def append_metrics(self, lines: str):
+        pass
+
+    def append_line(self, from_encoder: str, color: str, line: str):
+        pass
+
+    def show(self):
+        pass
+
+class ReporterTerminal(Reporter):
     def __init__(self, out_prefix: str, encoding: str = "utf-8"):
         self.out_prefix = out_prefix
         self.encoding = encoding

@@ -11,15 +11,17 @@ class ChannelCoding:
         self.n = tamanio
         self.G = matriz_generadora
 
-    def encode(self, bits: np.ndarray, reporter: Reporter | None) -> np.ndarray:
-        if reporter is not None:
-            reporter.append_line("Codificación", BLUE, "Creando códigos de lineas")
+    def encode(self, bits: np.ndarray, reporter: Reporter) -> np.ndarray:
+        reporter.append_line("Codificación", BLUE, "Creando códigos de lineas")
+
         # Aca deberiamos calcular H y la tabla de sindromes
-        raise NotImplementedError("TODO: codificar palabra (n,k)")
+        # TODO: codificar palabra (n,k)
+        return bits
 
     def decode(self, codigo: np.ndarray) -> np.ndarray:
         # Aca usariamos H y la tabla de sindromes que calculamos antes
-        raise NotImplementedError("TODO: decodificar con detección/corrección de errores")
+        # TODO: decodificar con detección/corrección de errores
+        return codigo
 
     def generar_matriz_H(self) -> np.ndarray:
         raise NotImplementedError("TODO: calcular H a partir de G")
