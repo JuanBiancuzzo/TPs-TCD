@@ -1,1 +1,6 @@
 **/__pycache__
+.venv
+venv
+tests
+__pycache__
+src/__pycache__
