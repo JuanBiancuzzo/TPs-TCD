@@ -4,7 +4,16 @@ from collections import Counter
 from math import log2, ceil
 from pathlib import Path
 from typing import List, Any
-from utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
+from src.utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
+
+# para los tests usé una versión simplificada de Reporter
+##class Reporter:
+##    def __init__(self):
+##        self.lines = []
+##    
+##    def append_line(self, category: str, color: str, message: str):
+##        """Simple logging method"""
+##        print(f"{category}: {message}")
 
 class Reporter(ABC):
     @abstractmethod

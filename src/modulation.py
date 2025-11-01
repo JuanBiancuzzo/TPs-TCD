@@ -2,8 +2,8 @@
 # TODO: implementar BPSK mínima y extender a QPSK/QAM.
 import numpy as np
 from typing import Tuple
-from report import Reporter
-from utils import BLUE
+from src.report import Reporter
+from src.utils import BLUE
 from enum import Enum
 
 class Scheme(Enum):
@@ -28,14 +28,15 @@ class Modulation:
         else:
             self.N = 1 if M == 2 else 2 
             if M == 2: 
-                self.symbols = np.array([[1],[-1]]) 
+                self.symbols = np.sqrt(self.k) * np.array([[1],[-1]]) 
             else:
-                phases = 2* np.pi *np.arange(M)/M # ángulos de fase: n*2pi/M, n= 0,1,2..
+                
+                phases = 2 * np.pi * np.arange(M) / M  # ángulos de fase: n*2pi/M, n=0..M-1
                 self.symbols = np.sqrt(self.k) * np.column_stack((np.cos(phases), np.sin(phases)))
-
-    def _bin_to_gray(n:int) -> int:
+    
+    def _bin_to_gray(self,n:int) -> int:
         return n^(n>>1)
-    def _gray_to_bin(g: int) -> int:
+    def _gray_to_bin(self,g: int) -> int:
         b = 0
         while g: 
             b ^= g
@@ -62,9 +63,10 @@ class Modulation:
             is_last = (pos == numSymbols - 1)
             numElements = self.k if (not is_last or resto == 0) else resto
 
-            # grupo de bits -> int
+            # grupo de bits -> int (LSB first)
             num = 0 
             for i in range(numElements): 
+                # LSB-first: bit at position i goes to position i
                 num |= (int(bits[pos * self.k + i]) & 1) << i
 
             # si el grupo tiene menos de k bits, se desplaza el índice a izquierda k-r
@@ -112,13 +114,15 @@ class Modulation:
                     if is_last and self.addedBits > 0:
                         bin_idx >>= self.addedBits
                 else:
-                    #PSK
                     if is_last and self.addedBits > 0:
-                        # shift inverso antes de Gray->bin
                         shifted = int(symbol) >> self.addedBits
-                        bin_idx = self._gray_to_bin(shifted)
+                        bin_idx = shifted  
                     else:
-                        bin_idx = self._gray_to_bin(int(symbol))
+                        bin_idx = int(symbol)  
+                        
+                # convertir de gray a binario 
+                if self.scheme == Scheme.PSK:
+                    bin_idx = self._gray_to_bin(bin_idx)
                 #bits en LSB-first
                 for j in range(self.k):
                     bits[global_idx * self.k + j] = (bin_idx >> j) & 1
