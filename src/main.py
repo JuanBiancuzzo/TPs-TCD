@@ -92,9 +92,9 @@ def main():
     pipe = pipeline.Pipeline([
         file.File(out_prefix=args.out_prefix),
         source.Source(),
-        cod_channel.ChannelCoding(tamanio=0, matriz_generadora=None),
-        modulation.Modulation(scheme = modulation.Scheme.FSK, M = 2),
-        channel.Channel(eb_n0_db=0, with_fading=True, rng=None),
+        cod_channel.ChannelCoding(tamanio = 0, matriz_generadora = None),
+        modulation.Modulation(scheme = modulation.Scheme.PSK, M = 4),
+        channel.Channel(eb_n0_db = 6),
     ], report.ReporterTerminal(args.out_prefix))
 
     path_out = pipe.run(args.path_in)
