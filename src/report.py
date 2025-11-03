@@ -4,7 +4,7 @@ from collections import Counter
 from math import log2, ceil
 from pathlib import Path
 from typing import List, Any
-from src.utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
+from utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
 
 # para los tests usé una versión simplificada de Reporter
 ##class Reporter:

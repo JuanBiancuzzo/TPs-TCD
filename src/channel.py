@@ -1,11 +1,11 @@
 # Módulo D – Efectos del canal (AWGN, atenuación)
 # TODO: implementar AWGN con Eb/N0 y atenuación uniforme [0.5, 0.9].
 import numpy as np
-from src.report import Reporter
-from src.utils import BLUE
+from report import Reporter
+from utils import BLUE
 
 class Channel:
-    def __init__(self, eb_n0_db: float, with_fading: bool = True, rng=None):
+    def __init__(self, eb_n0_db: float, with_fading: bool = False, rng = None):
         self.eb_n0_db = eb_n0_db
         self.with_fading = with_fading
         self.rng = rng
@@ -16,15 +16,14 @@ class Channel:
         num_sym = sym.shape[0] if sym.ndim >1 else 1
         rng = self.rng if self.rng is not None else np.random.default_rng()
         if self.with_fading:
-            fades = rng.uniform(0.5, 0.9, size=num_sym)
+            fades = rng.uniform(0.5, 0.9, size = num_sym)
             # aplicar la atenuación a los símbolos
             fades_reshaped = fades.reshape(-1, *(1,) * (sym.ndim - 1))
             sym = sym * fades_reshaped
             reporter.append_line("Canal", BLUE, f"Atenuación aplicada (min={fades.min()}, max = {fades.max()}) ")
-        else:
-            fades = None
+
         # se calcula sigma de ruido desde el Eb/N0 asumiendo Eb = 1
-        ebn0_lin = 10**(self.eb_n0_db/10)
+        ebn0_lin = 10**(self.eb_n0_db / 10)
         N0 = 1/ebn0_lin
         sigma = np.sqrt(N0/2)
         noise = rng.normal(0,sigma,sym.shape)
