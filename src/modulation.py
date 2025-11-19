@@ -20,11 +20,11 @@ class Scheme(Enum):
 class Modulation:
     def __init__(self, scheme: Scheme = Scheme.PSK, M: int = 2):
         self.scheme = scheme
-        self.M = M  #Número de símbolos
-        self.N = 0  
-        self.k = int(np.log2(M))    #bits por símbolo
-        self.addedBits = 0  #padding bits
-        self.batchs = 1000  #tamaño de batch 
+        self.M = M               # Número de símbolos
+        self.N = 0               # Dimensiones
+        self.k = int(np.log2(M)) # bits por símbolo
+        self.added_bits = 0      # padding bits
+        self.batchs = 1000       # tamaño de batch 
 
         if scheme == Scheme.FSK:
             # Como E_b = 1 entonces E_s = k * E_b = k => sqrt(E_s) = sqrt(k)
@@ -51,23 +51,23 @@ class Modulation:
     def encode(self, bits: np.ndarray, reporter: Reporter) -> np.ndarray: 
         # Calcular la energia media de simbolo y de bit
         mapping = None
-        numSymbols = int(np.ceil(len(bits) / self.k)) #número de símbolos requeridos
+        num_symbols = int(np.ceil(len(bits) / self.k)) #número de símbolos requeridos
         resto = len(bits) % self.k
-        self.addedBits = 0 if resto == 0 else (self.k - resto)
+        self.added_bits = 0 if resto == 0 else (self.k - resto)
 
         reporter.append_line("Modulación", BLUE, f"Mapeando de {self.M}-{self.scheme} con {self.k} bits a símbolos")
         
-        mapping = np.zeros((numSymbols, self.N))
+        mapping = np.zeros((num_symbols, self.N))
         # se mapea cada grupo de k bits a un símbolo
-        for pos in range(numSymbols):
+        for pos in range(num_symbols):
 
             # cuántos bits necesito para este símbolo
-            is_last = (pos == numSymbols - 1)
-            numElements = self.k if (not is_last or resto == 0) else resto
+            is_last = (pos == num_symbols - 1)
+            num_elements = self.k if (not is_last or resto == 0) else resto
 
             # grupo de bits -> int (LSB first)
             num = 0 
-            for i in range(numElements): 
+            for i in range(num_elements): 
                 # LSB-first: bit at position i goes to position i
                 num |= (int(bits[pos * self.k + i]) & 1) << i
 
@@ -82,14 +82,14 @@ class Modulation:
         return mapping
 
     def decode(self, sym: np.ndarray) -> np.ndarray:
-        numSymbols = len(sym)
-        numBatchs = int(np.ceil(len(sym)/self.batchs))
-        bits = np.zeros(self.k * numSymbols, dtype=int)
+        num_symbols = len(sym)
+        num_batchs = int(np.ceil(len(sym)/self.batchs))
+        bits = np.zeros(self.k * num_symbols, dtype=int)
 
-        for b in range(numBatchs):
+        for b in range(num_batchs):
             # se lee de a batches de tamaño fijo
             start = b* self.batchs
-            end = min((b+1)*self.batchs, numSymbols)
+            end = min((b+1)*self.batchs, num_symbols)
             batch = sym[start:end]
 
             if batch.size == 0:
@@ -103,18 +103,25 @@ class Modulation:
             nearest = np.argmin(norms, axis = 0)
             for pos, symbol in enumerate(nearest):
                 global_idx = start + pos
-                is_last = (global_idx == numSymbols - 1)
+                is_last = (global_idx == num_symbols - 1)
 
                 # si el último símbolo fue largo menor que k, se desplaza a la inversa
                 bin_idx = int(symbol)
-                if is_last and self.addedBits > 0:
-                    bin_idx >>= self.addedBits
+                if is_last and self.added_bits > 0:
+                    bin_idx >>= self.added_bits
                         
                 #bits en LSB-first
                 for j in range(self.k):
                     bits[global_idx * self.k + j] = (bin_idx >> j) & 1
 
         # se slicea los bits de sobra que se pudieran haber agregado en el encoding
-        total_bits = self.k * numSymbols
-        return bits[:total_bits - self.addedBits]
+        total_bits = self.k * num_symbols
+        return bits[:total_bits - self.added_bits]
         
+    def estimated_simbol_energy(self, sys: np.ndarray) -> np.ndarray:
+        # Por la relación de Parseval se puede calcular la energía de simbolo por 
+        # la norma al cuadrado de cada vector
+        return np.linalg.norm(sys, axis = 1)**2
+
+    def estimated_bit_energy(self, sys: np.ndarray) -> np.ndarray:
+        return self.estimated_simbol_energy(sys) / self.k
