@@ -29,22 +29,24 @@ class Modulation:
         self.batchs = 1000       # tamaño de batch 
 
         if scheme == Scheme.FSK:
-            # Como E_b = 1 entonces E_s = k * E_b = k => sqrt(E_s) = sqrt(k)
-            self.symbols = np.sqrt(self.k) * np.eye(M)
+            self.symbols = np.eye(M)
             self.N = M 
         
         else:
             self.N = 1 if M == 2 else 2 
             if M == 2: 
-                symbols = np.sqrt(self.k) * np.array([[1],[-1]]) 
-            else:
+                symbols = np.array([[1],[-1]]) 
                 
+            else:
                 phases = 2 * np.pi * np.arange(M) / M  # ángulos de fase: n*2pi/M, n=0..M-1
-                symbols = np.sqrt(self.k) * np.column_stack((np.cos(phases), np.sin(phases)))
+                symbols = np.column_stack((np.cos(phases), np.sin(phases)))
 
             self.symbols = np.zeros((self.M, self.N))
             for i in range(M):
-                self.symbols[i] += symbols[Modulation._bin_to_gray(i)]
+                self.symbols[Modulation._bin_to_gray(i)] += symbols[i]
+
+        # Como E_b = 1 entonces E_s = k * E_b = k => sqrt(E_s) = sqrt(k)
+        self.symbols *= np.sqrt(self.k)
     
     @staticmethod
     def _bin_to_gray(n: int) -> int:
@@ -155,7 +157,7 @@ class Modulation:
 
             else:
                 mag = np.max(np.linalg.norm(self.symbols, axis = 1))
-                phases = 2 * np.pi * np.arange(100) / 100
+                phases = np.linspace(0, 2 * np.pi, 100, endpoint = True) 
                 ax.plot(mag * np.cos(phases), mag * np.sin(phases), ls = "--")
 
                 mag *= 2
