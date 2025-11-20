@@ -1,6 +1,8 @@
 # Módulo C – Modulación/Demodulación
 # TODO: implementar BPSK mínima y extender a QPSK/QAM.
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from typing import Tuple
 from report import Reporter
 from utils import BLUE
@@ -44,8 +46,8 @@ class Modulation:
             for i in range(M):
                 self.symbols[i] += symbols[Modulation._bin_to_gray(i)]
     
-    @classmethod
-    def _bin_to_gray(cls, n: int) -> int:
+    @staticmethod
+    def _bin_to_gray(n: int) -> int:
         return n ^ (n >> 1)
         
     def encode(self, bits: np.ndarray, reporter: Reporter) -> np.ndarray: 
@@ -56,6 +58,7 @@ class Modulation:
         self.added_bits = 0 if resto == 0 else (self.k - resto)
 
         reporter.append_line("Modulación", BLUE, f"Mapeando de {self.M}-{self.scheme} con {self.k} bits a símbolos")
+        self.graph_constalation(reporter)
         
         mapping = np.zeros((num_symbols, self.N))
         # se mapea cada grupo de k bits a un símbolo
@@ -124,4 +127,57 @@ class Modulation:
         return np.linalg.norm(sys, axis = 1)**2
 
     def estimated_bit_energy(self, sys: np.ndarray) -> np.ndarray:
+        # Usando que e_b = e_s / log_2(M) podemos reutilizar lo que ya calculamos
         return self.estimated_simbol_energy(sys) / self.k
+
+    def graph_constalation(self, reporter: Reporter) -> None:
+        if self.scheme == Scheme.FSK and self.N > 2:
+            reporter.append_line("Modulación", BLUE, f"No se puede graficar la constelación para la {self.M}-{self.scheme}")
+            return
+
+        def graph(ax):
+            xs = self.symbols[:, 0]
+            ys = np.zeros(self.symbols[:, 0].shape)
+            if self.scheme != Scheme.PSK or self.N != 1:
+                ys = self.symbols[:, 1]
+            symbol_color = "blue"
+            ax.scatter(xs, ys, marker = "x", color = symbol_color)
+
+            for i, (x, y) in enumerate(zip(xs * 1.1, ys * 1.1)):
+                ax.text(x, y, f"{i:0{self.k}b}", ha = "center", va = "center")
+
+            extend = 0.4
+            lim = (np.min(xs) - extend, np.max(xs) + extend)
+
+            boundary_color = "black"
+            if self.scheme == Scheme.FSK:
+                ax.plot([ *lim ], [ *lim ], ls = "--", color = boundary_color)
+
+            else:
+                mag = np.max(np.linalg.norm(self.symbols, axis = 1))
+                phases = 2 * np.pi * np.arange(100) / 100
+                ax.plot(mag * np.cos(phases), mag * np.sin(phases), ls = "--")
+
+                mag *= 2
+                for i in range(self.M):
+                    phase = 2 * np.pi * (i + 0.5) / self.M
+                    ax.plot([ 0, mag * np.cos(phase) ] , [ 0, mag * np.sin(phase) ], ls = "--", color = boundary_color)
+
+            ax.set_xlim(lim)
+            ax.set_ylim(lim)
+
+            ax.grid()
+            ax.legend(handles = [ 
+                Line2D([0], [0], color = symbol_color, marker = "x", label = "Símbolos"),
+                Line2D([0], [0], color = boundary_color, lw = 2, ls = "--", label = "Frontera de decisión"),
+            ], loc = "upper right")
+
+        fig = plt.figure(figsize = (10, 10))
+        ax = fig.add_subplot(111)
+        reporter.graph(
+            graph_name = f"Contelacion_{self.M}-{self.scheme}",
+            axis = ax,
+            graph = graph,
+        )
+
+        reporter.append_line("Modulación", BLUE, f"Generando constelación {self.M}-{self.scheme}")

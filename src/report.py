@@ -1,9 +1,16 @@
 from abc import ABC, abstractmethod
 
+import numpy as np
+from matplotlib.gridspec import SubplotSpec
+from matplotlib.axis import Axis
+import matplotlib.pyplot as plt
+
 from collections import Counter
+from collections.abc import Callable
+
 from math import log2, ceil
 from pathlib import Path
-from typing import List, Any
+from typing import List, Any, Tuple
 from utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
 
 # para los tests usé una versión simplificada de Reporter
@@ -17,19 +24,23 @@ from utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
 
 class Reporter(ABC):
     @abstractmethod
-    def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]):
+    def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]) -> None:
         pass
 
     @abstractmethod
-    def append_metrics(self, lines: str):
+    def append_metrics(self, lines: str) -> None:
         pass
 
     @abstractmethod
-    def append_line(self, from_encoder: str, color: str, line: str):
+    def append_line(self, from_encoder: str, color: str, line: str) -> None:
         pass
 
     @abstractmethod
-    def show(self):
+    def graph(self, graph_name: str, axis: np.ndarray, graph: Callable[[np.ndarray], None]) -> None:
+        pass
+
+    @abstractmethod
+    def show(self) -> None:
         pass
 
 class EmptyReporter(Reporter):
@@ -40,6 +51,9 @@ class EmptyReporter(Reporter):
         pass
 
     def append_line(self, from_encoder: str, color: str, line: str):
+        pass
+
+    def graph(self, graph_name: str, axis: np.ndarray, graph: Callable[[np.ndarray], None]) -> None:
         pass
 
     def show(self):
@@ -71,6 +85,12 @@ class ReporterTerminal(Reporter):
 
     def append_line(self, from_encoder: str, color: str, line: str):
         self.lines.append(f"{color}[{from_encoder}]{RESET} {line}")
+
+    def graph(self, graph_name: str, axis: np.ndarray, graph: Callable[[np.ndarray], None]) -> None:
+        graph_path = Path(f"{self.out_prefix}_{graph_name}")
+        graph(axis)
+        plt.tight_layout()
+        plt.savefig(graph_path)
 
     def show(self):
         for line in self.lines:
