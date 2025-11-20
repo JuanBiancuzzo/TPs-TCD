@@ -58,6 +58,7 @@ class Modulation(EncoderDecoder):
         num_symbols = int(np.ceil(len(bits) / self.k)) #número de símbolos requeridos
         resto = len(bits) % self.k
         self.added_bits = 0 if resto == 0 else (self.k - resto)
+        self.bits = np.concat(bits, np.zeros(self.added_bits))
 
         reporter.append_line("Modulación", BLUE, f"Mapeando de {self.M}-{self.scheme} con {self.k} bits a símbolos")
         self._graph_constalation(reporter)
@@ -120,8 +121,28 @@ class Modulation(EncoderDecoder):
                     bits[global_idx * self.k + j] = (bin_idx >> j) & 1
 
         # se slicea los bits de sobra que se pudieran haber agregado en el encoding
-        total_bits = self.k * num_symbols
-        return bits[:total_bits - self.added_bits]
+        range_bits = slice(self.k * num_symbols - self.added_bits)
+
+        # en este punto se deberia poner pero hay que ver como agregarlo en el reporter
+        # self._estimated_symbol_error_proba(self.bits, bits)
+        # self._estimated_bit_error_proba(self.bits[range_bits], bits[range_bits])
+
+        return bits[range_bits]
+
+    def _estimated_symbol_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> np.float64:
+        def convert_bits_2_symbols(bits: np.ndarray) -> np.ndarray:
+            symbols = np.column_stack(np.split(bits, self.k)) # stack bits 
+            # bits en LSB-first
+            scale = np.logspace(1, num = self.k, base = 2) # 1, 2, 4, 16
+            return np.sum(symbols * scale, axis = 1)
+
+        origianl_symbols = convert_bits_2_symbols(origianl_bits)
+        demodulated_symbols = convert_bits_2_symbols(demodulated_bits)
+
+        return np.mean((origianl_symbols != demodulated_symbols).astype(int))
+
+    def _estimated_bit_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> np.float64:
+        return np.mean((origianl_bits != demodulated_bits).astype(int))
         
     def _estimated_simbol_energy(self, sys: np.ndarray) -> np.ndarray:
         # Por la relación de Parseval se puede calcular la energía de simbolo por 
@@ -130,7 +151,7 @@ class Modulation(EncoderDecoder):
 
     def _estimated_bit_energy(self, sys: np.ndarray) -> np.ndarray:
         # Usando que e_b = e_s / log_2(M) podemos reutilizar lo que ya calculamos
-        return self._estimated_simbol_energy(sys) / self.k
+        return Modulation._estimated_simbol_energy(sys) / self.k
 
     def _graph_constalation(self, reporter: Reporter) -> None:
         if self.scheme == Scheme.FSK and self.N > 2:
