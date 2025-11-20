@@ -158,7 +158,7 @@ class Modulation:
             else:
                 mag = np.max(np.linalg.norm(self.symbols, axis = 1))
                 phases = np.linspace(0, 2 * np.pi, 100, endpoint = True) 
-                ax.plot(mag * np.cos(phases), mag * np.sin(phases), ls = "--")
+                ax.plot(mag * np.cos(phases), mag * np.sin(phases), ls = "--", color = boundary_color)
 
                 mag *= 2
                 for i in range(self.M):
