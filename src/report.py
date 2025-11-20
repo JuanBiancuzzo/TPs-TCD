@@ -90,6 +90,7 @@ class ReporterTerminal(Reporter):
         graph(axis)
         plt.tight_layout()
         plt.savefig(graph_path)
+        self.append_line("Reporter", BLUE, f"Gráfico → {graph_path}")
         return graph_path
 
     def show(self):
