@@ -1,9 +1,9 @@
 # Módulo C – Modulación/Demodulación
-# TODO: implementar BPSK mínima y extender a QPSK/QAM.
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from typing import Tuple
+
+from pipeline import EncoderDecoder
 from report import Reporter
 from utils import BLUE
 from enum import Enum
@@ -19,7 +19,7 @@ class Scheme(Enum):
             return "PSK"
 
 # Vamos a tomar E_b = 1
-class Modulation:
+class Modulation(EncoderDecoder):
     def __init__(self, scheme: Scheme = Scheme.PSK, M: int = 2):
         self.scheme = scheme
         self.M = M               # Número de símbolos
@@ -60,7 +60,7 @@ class Modulation:
         self.added_bits = 0 if resto == 0 else (self.k - resto)
 
         reporter.append_line("Modulación", BLUE, f"Mapeando de {self.M}-{self.scheme} con {self.k} bits a símbolos")
-        self.graph_constalation(reporter)
+        self._graph_constalation(reporter)
         
         mapping = np.zeros((num_symbols, self.N))
         # se mapea cada grupo de k bits a un símbolo
@@ -86,7 +86,7 @@ class Modulation:
 
         return mapping
 
-    def decode(self, sym: np.ndarray) -> np.ndarray:
+    def decode(self, sym: np.ndarray, reporter: Reporter) -> np.ndarray:
         num_symbols = len(sym)
         num_batchs = int(np.ceil(len(sym)/self.batchs))
         bits = np.zeros(self.k * num_symbols, dtype=int)
@@ -123,16 +123,16 @@ class Modulation:
         total_bits = self.k * num_symbols
         return bits[:total_bits - self.added_bits]
         
-    def estimated_simbol_energy(self, sys: np.ndarray) -> np.ndarray:
+    def _estimated_simbol_energy(self, sys: np.ndarray) -> np.ndarray:
         # Por la relación de Parseval se puede calcular la energía de simbolo por 
         # la norma al cuadrado de cada vector
         return np.linalg.norm(sys, axis = 1)**2
 
-    def estimated_bit_energy(self, sys: np.ndarray) -> np.ndarray:
+    def _estimated_bit_energy(self, sys: np.ndarray) -> np.ndarray:
         # Usando que e_b = e_s / log_2(M) podemos reutilizar lo que ya calculamos
-        return self.estimated_simbol_energy(sys) / self.k
+        return self._estimated_simbol_energy(sys) / self.k
 
-    def graph_constalation(self, reporter: Reporter) -> None:
+    def _graph_constalation(self, reporter: Reporter) -> None:
         if self.scheme == Scheme.FSK and self.N > 2:
             reporter.append_line("Modulación", BLUE, f"No se puede graficar la constelación para la {self.M}-{self.scheme}")
             return
@@ -174,11 +174,9 @@ class Modulation:
                 Line2D([0], [0], color = boundary_color, lw = 2, ls = "--", label = "Frontera de decisión"),
             ], loc = "upper right")
 
-        fig = plt.figure(figsize = (10, 10))
-        ax = fig.add_subplot(111)
         reporter.graph(
             graph_name = f"Contelacion_{self.M}-{self.scheme}",
-            axis = ax,
+            axis = plt.figure(figsize = (10, 10)).add_subplot(),
             graph = graph,
         )
 

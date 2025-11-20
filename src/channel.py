@@ -1,10 +1,10 @@
 # Módulo D – Efectos del canal (AWGN, atenuación)
-# TODO: implementar AWGN con Eb/N0 y atenuación uniforme [0.5, 0.9].
 import numpy as np
 from report import Reporter
+from pipeline import EncoderDecoder
 from utils import BLUE
 
-class Channel:
+class Channel(EncoderDecoder):
     def __init__(self, eb_n0_db: float, with_fading: bool = False, rng = None):
         self.eb_n0_db = eb_n0_db
         self.with_fading = with_fading
@@ -30,5 +30,5 @@ class Channel:
         reporter.append_line("Canal", BLUE, f"Eb/N0={self.eb_n0_db} dB -> sigma = {sigma}")
         return sym + noise 
 
-    def decode(self, sym: np.ndarray) -> np.ndarray:
+    def decode(self, sym: np.ndarray, reporter: Reporter) -> np.ndarray:
         return sym

@@ -14,7 +14,7 @@ EncDict = Dict[str, Code]  # Diccionario: símbolo -> código
 DecDict = Dict[Code, str]  # Diccionario: código -> símbolo
 
 class Source(EncoderDecoder):
-    def encode(self, text: str, reporter: Reporter | None) -> List[Bit]:
+    def encode(self, text: str, reporter: Reporter) -> List[Bit]:
         """
         Codifica un texto a una secuencia de bits usando un diccionario de Huffman.
 
@@ -32,12 +32,11 @@ class Source(EncoderDecoder):
         _walk(tree, tuple(), self.encoder)
         self.decoder: DecDict = {code: ch for ch, code in self.encoder.items()}
 
-        if reporter is not None:
-            self._report(text, reporter)
+        self._report(text, reporter)
 
         return np.array(self._encode_text(text), dtype=np.uint8)
 
-    def decode(self, bits: List[Bit]) -> str:
+    def decode(self, bits: List[Bit], reporter: Reporter) -> str:
         """
         Decodifica una secuencia de bits en un texto usando el diccionario inverso.
 

@@ -4,9 +4,10 @@
 import numpy as np
 from typing import Tuple
 from report import Reporter
+from pipeline import EncoderDecoder
 from utils import BLUE
 
-class ChannelCoding:
+class ChannelCoding(EncoderDecoder):
     def __init__(self, tamanio: int, matriz_generadora: np.ndarray):
         self.n = tamanio
         self.G = matriz_generadora
@@ -18,7 +19,7 @@ class ChannelCoding:
         # TODO: codificar palabra (n,k)
         return bits
 
-    def decode(self, codigo: np.ndarray) -> np.ndarray:
+    def decode(self, codigo: np.ndarray, reporter: Reporter) -> np.ndarray:
         # Aca usariamos H y la tabla de sindromes que calculamos antes
         # TODO: decodificar con detección/corrección de errores
         return codigo
