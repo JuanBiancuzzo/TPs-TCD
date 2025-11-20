@@ -13,6 +13,8 @@ Code = Tuple[Bit, ...]  # Código binario como tupla de bits (prefijo libre)
 EncDict = Dict[str, Code]  # Diccionario: símbolo -> código
 DecDict = Dict[Code, str]  # Diccionario: código -> símbolo
 
+ENCODER = "Fuente/Huffman"
+
 class Source(EncoderDecoder):
     def encode(self, text: str, reporter: Reporter) -> List[Bit]:
         """
@@ -36,7 +38,7 @@ class Source(EncoderDecoder):
 
         return np.array(self._encode_text(text), dtype=np.uint8)
 
-    def decode(self, bits: List[Bit], reporter: Reporter) -> str:
+    def decode(self, bits: List[Bit], reporter: Reporter = None) -> str:
         """
         Decodifica una secuencia de bits en un texto usando el diccionario inverso.
 
@@ -74,7 +76,7 @@ class Source(EncoderDecoder):
         return bits
 
     def _report(self, text: str, reporter: Reporter):
-        reporter.append_line("Fuente/Huffman", utils.BLUE, "Construyendo código Huffman")
+        reporter.append_line(ENCODER, utils.BLUE, "Construyendo código Huffman")
 
         sample_line     = _first_nonempty_line(text)[:120]
         sample_bits     = self._encode_text(sample_line)
@@ -96,10 +98,9 @@ class Source(EncoderDecoder):
         result_path = reporter.report_results("tabla_huffman.csv", headers, data)
         
         line = f"H={H:.4f} | Lavg={Lavg:.4f} | η={eff*100:.2f}% | L_fijo≈{Lfix}"
-        reporter.append_line("Fuente/Huffman", utils.BLUE, line)
+        reporter.append_line(ENCODER, utils.BLUE, line)
 
         report_metrics = "\n".join([
-            "### Resultados Huffman\n",
             f"- Entropía H: **{H:.4f}** bits/símbolo",
             f"- Longitud mínima (Lmin): **{Lmin}** bits",
             f"- Longitud promedio (L̄): **{Lavg:.4f}** bits/símbolo",
@@ -114,7 +115,7 @@ class Source(EncoderDecoder):
             "\n#### Tabla CSV generada",
             f"- `{result_path}`",
         ])
-        reporter.append_metrics(report_metrics)
+        reporter.append_metrics(ENCODER, report_metrics)
 
     # --------------------------------------------------------------------
     # Métricas de código

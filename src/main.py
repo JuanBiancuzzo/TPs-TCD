@@ -94,7 +94,7 @@ def main():
         source.Source(),
         cod_channel.ChannelCoding(tamanio = 0, matriz_generadora = None),
         modulation.Modulation(scheme = modulation.Scheme.PSK, M = 2**2),
-        channel.Channel(eb_n0_db = 6),
+        channel.Channel(eb_n0_db = 0),
     ], report.ReporterTerminal(args.out_prefix))
 
     path_out = pipe.run(args.path_in)

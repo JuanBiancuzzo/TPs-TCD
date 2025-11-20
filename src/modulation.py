@@ -8,6 +8,8 @@ from report import Reporter
 from utils import BLUE
 from enum import Enum
 
+ENCODER = "Modulación"
+
 class Scheme(Enum):
     FSK = "M-FSK"
     PSK = "M-PSK"
@@ -58,12 +60,13 @@ class Modulation(EncoderDecoder):
         num_symbols = int(np.ceil(len(bits) / self.k)) #número de símbolos requeridos
         resto = len(bits) % self.k
         self.added_bits = 0 if resto == 0 else (self.k - resto)
-        self.bits = np.concat(bits, np.zeros(self.added_bits))
+        self.bits = np.concat((bits, np.zeros(self.added_bits, dtype = bits.dtype)))
 
-        reporter.append_line("Modulación", BLUE, f"Mapeando de {self.M}-{self.scheme} con {self.k} bits a símbolos")
-        self._graph_constalation(reporter)
+        reporter.append_line(ENCODER, BLUE, f"Mapeando de {self.M}-{self.scheme} con {self.k} bits a símbolos")
         
         mapping = np.zeros((num_symbols, self.N))
+        symbols = np.zeros(num_symbols, dtype = int)
+
         # se mapea cada grupo de k bits a un símbolo
         for pos in range(num_symbols):
 
@@ -84,6 +87,16 @@ class Modulation(EncoderDecoder):
             sym_idx = int(num << shift) % self.M
 
             mapping[pos] = self.symbols[sym_idx]
+            symbols[pos] = sym_idx
+
+        average_symbol_energy = self._estimated_simbol_energy(symbols)
+        average_bit_energy = self._estimated_bit_energy(symbols)
+
+        report_metrics = [
+            f"- Energía media de símbolo: **{average_symbol_energy:.3f}** Joule",
+            f"- Energía media de bit: **{average_bit_energy:.3f}** Joule",
+        ]
+        reporter.append_metrics(ENCODER, "\n".join(report_metrics))
 
         return mapping
 
@@ -124,39 +137,55 @@ class Modulation(EncoderDecoder):
         range_bits = slice(self.k * num_symbols - self.added_bits)
 
         # en este punto se deberia poner pero hay que ver como agregarlo en el reporter
-        # self._estimated_symbol_error_proba(self.bits, bits)
-        # self._estimated_bit_error_proba(self.bits[range_bits], bits[range_bits])
+        symbol_error_proba = self._estimated_symbol_error_proba(self.bits, bits)
+        bit_error_proba = self._estimated_bit_error_proba(self.bits[range_bits], bits[range_bits])
+
+        report_metrics = [
+            f"- Probabilidad de error de símbolo: **{symbol_error_proba:.4f}**",
+            f"- Probabilidad de error de bit: **{bit_error_proba:.4f}**",
+        ]
+        graph_path = self._graph_constalation(reporter)
+        if graph_path is not None:
+            report_metrics += [
+                "\n#### Gráfico de constelación generado",
+                f"- `{graph_path}.png`",
+            ]
+        reporter.append_metrics(ENCODER, "\n".join(report_metrics))
 
         return bits[range_bits]
 
-    def _estimated_symbol_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> np.float64:
-        def convert_bits_2_symbols(bits: np.ndarray) -> np.ndarray:
-            symbols = np.column_stack(np.split(bits, self.k)) # stack bits 
-            # bits en LSB-first
-            scale = np.logspace(1, num = self.k, base = 2) # 1, 2, 4, 16
-            return np.sum(symbols * scale, axis = 1)
+    def _convert_bits_2_symbols(self, bits: np.ndarray) -> np.ndarray:
+        symbols = np.column_stack(np.split(bits, self.k)) # stack bits 
+        # bits en LSB-first
+        scale = np.logspace(1, self.k, num = self.k, endpoint = True, base = 2) # 1, 2, 4, 16
+        return np.sum(symbols * scale, axis = 1)
 
-        origianl_symbols = convert_bits_2_symbols(origianl_bits)
-        demodulated_symbols = convert_bits_2_symbols(demodulated_bits)
+    def _estimated_symbol_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> np.float64:
+        origianl_symbols = self._convert_bits_2_symbols(origianl_bits)
+        demodulated_symbols = self._convert_bits_2_symbols(demodulated_bits)
 
         return np.mean((origianl_symbols != demodulated_symbols).astype(int))
 
     def _estimated_bit_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> np.float64:
         return np.mean((origianl_bits != demodulated_bits).astype(int))
         
-    def _estimated_simbol_energy(self, sys: np.ndarray) -> np.ndarray:
+    def _estimated_simbol_energy(self, sym: np.ndarray) -> np.ndarray:
         # Por la relación de Parseval se puede calcular la energía de simbolo por 
         # la norma al cuadrado de cada vector
-        return np.linalg.norm(sys, axis = 1)**2
+        energy_per_symbol = np.linalg.norm(self.symbols, axis = 1)**2
+        average_energy = 0
+        for symbol, count in zip(*np.unique(sym, return_counts = True)):
+            average_energy += count * energy_per_symbol[symbol] / len(sym)
+        return average_energy
 
-    def _estimated_bit_energy(self, sys: np.ndarray) -> np.ndarray:
+    def _estimated_bit_energy(self, sym: np.ndarray) -> np.ndarray:
         # Usando que e_b = e_s / log_2(M) podemos reutilizar lo que ya calculamos
-        return Modulation._estimated_simbol_energy(sys) / self.k
+        return self._estimated_simbol_energy(sym) / self.k
 
     def _graph_constalation(self, reporter: Reporter) -> None:
         if self.scheme == Scheme.FSK and self.N > 2:
-            reporter.append_line("Modulación", BLUE, f"No se puede graficar la constelación para la {self.M}-{self.scheme}")
-            return
+            reporter.append_line(ENCODER, BLUE, f"No se puede graficar la constelación para la {self.M}-{self.scheme}")
+            return None
 
         def graph(ax):
             xs = self.symbols[:, 0]
@@ -195,10 +224,11 @@ class Modulation(EncoderDecoder):
                 Line2D([0], [0], color = boundary_color, lw = 2, ls = "--", label = "Frontera de decisión"),
             ], loc = "upper right")
 
-        reporter.graph(
+        graph_path = reporter.graph(
             graph_name = f"Contelacion_{self.M}-{self.scheme}",
             axis = plt.figure(figsize = (10, 10)).add_subplot(),
             graph = graph,
         )
 
-        reporter.append_line("Modulación", BLUE, f"Generando constelación {self.M}-{self.scheme}")
+        reporter.append_line(ENCODER, BLUE, f"Generando constelación {self.M}-{self.scheme}")
+        return graph_path
