@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import List, Any
-from report import Reporter
+from report import Reporter, EmptyReporter
 
 Input = Any
 Output = Any
 
 class EncoderDecoder(ABC):
     @abstractmethod
-    def encode(self, data: Input, reporter: Reporter | None) -> Output:
+    def encode(self, data: Input, reporter: Reporter) -> Output:
         pass
 
     @abstractmethod
@@ -17,7 +17,10 @@ class EncoderDecoder(ABC):
 class Pipeline:
     def __init__(self, processes: List[EncoderDecoder], reporter: Reporter | None):
         self.processes = processes
+
         self.reporter = reporter
+        if reporter is None:
+            self.reporter = EmptyReporter()
 
     def run(self, input: Input):
         decoders = []
@@ -26,7 +29,7 @@ class Pipeline:
             input = process.encode(input, self.reporter)
 
         for process in decoders:
-            input = process.decode(input)
+            input = process.decode(input, self.reporter)
 
         if self.reporter is not None:
             self.reporter.show()
