@@ -272,7 +272,7 @@ class Modulation(EncoderDecoder):
             ax.scatter(xs, ys, marker = "x", c = palette)
 
             for i, (x, y) in enumerate(zip(xs * 1.1, ys * 1.1)):
-                ax.text(x, y, f"{i:0{self.k}b}", ha = "center", va = "center")
+                ax.text(x, y, f"{i:0{self.k}b}", ha = "center", va = "center", backgroundcolor = "white")
 
             extend = 0.4
             lim = (np.min(xs) - extend, np.max(xs) + extend)
