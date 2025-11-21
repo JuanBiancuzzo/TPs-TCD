@@ -269,8 +269,9 @@ class Modulation(EncoderDecoder):
             xs, ys = self.symbols[:, 0], np.zeros(self.symbols[:, 0].shape)
             if self.N != 1:
                 ys = self.symbols[:, 1]
-            ax.scatter(xs, ys, marker = "x", c = palette)
 
+            symbol_color = "blue"
+            ax.scatter(xs, ys, marker = "x", color = symbol_color, linewidths = 3, s = 100)
             for i, (x, y) in enumerate(zip(xs * 1.1, ys * 1.1)):
                 ax.text(x, y, f"{i:0{self.k}b}", ha = "center", va = "center", backgroundcolor = "white")
 
@@ -297,7 +298,7 @@ class Modulation(EncoderDecoder):
             ax.grid()
             ax.legend(handles = [
                 Line2D([0], [0], color = palette[0], marker = "^", label = "Data"),
-                Line2D([0], [0], color = palette[0], marker = "x", label = "Símbolos"),
+                Line2D([0], [0], color = symbol_color, marker = "x", label = "Símbolos"),
                 Line2D([0], [0], color = boundary_color, lw = 2, ls = "--", label = "Frontera de decisión"),
             ], loc = "upper right")
 
