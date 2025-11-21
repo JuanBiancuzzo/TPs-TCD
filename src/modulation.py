@@ -1,5 +1,6 @@
 # Módulo C – Modulación/Demodulación
 import numpy as np
+import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
@@ -9,6 +10,7 @@ from utils import BLUE
 from enum import Enum
 
 ENCODER = "Modulación"
+ENCODER_CHANNEL = "Canal"
 
 class Scheme(Enum):
     FSK = "M-FSK"
@@ -107,8 +109,8 @@ class Modulation(EncoderDecoder):
 
         for b in range(num_batchs):
             # se lee de a batches de tamaño fijo
-            start = b* self.batchs
-            end = min((b+1)*self.batchs, num_symbols)
+            start = b * self.batchs
+            end = min((b + 1) * self.batchs, num_symbols)
             batch = sym[start:end]
 
             if batch.size == 0:
@@ -152,13 +154,27 @@ class Modulation(EncoderDecoder):
             ]
         reporter.append_metrics(ENCODER, "\n".join(report_metrics))
 
+        graph_path = self._graph_constalation_data(self.bits, sym, reporter)
+        if graph_path is not None:
+            report_metrics = [
+                "\n#### Gráfico de constelación generado con datos",
+                f"- `{graph_path}.png`",
+            ]
+            reporter.append_metrics(ENCODER_CHANNEL, "\n".join(report_metrics))
+
         return bits[range_bits]
 
     def _convert_bits_2_symbols(self, bits: np.ndarray) -> np.ndarray:
-        symbols = np.column_stack(np.split(bits, self.k)) # stack bits 
-        # bits en LSB-first
-        scale = np.logspace(1, self.k, num = self.k, endpoint = True, base = 2) # 1, 2, 4, 16
-        return np.sum(symbols * scale, axis = 1)
+        num_symbols = int(np.ceil(len(bits) / self.k)) #número de símbolos requeridos
+        resto = len(bits) % self.k
+        bits = np.concat((bits, np.zeros(resto)))
+        symbols = np.zeros(num_symbols, dtype = int)
+
+        for pos in range(num_symbols):
+            for i in range(self.k): 
+                symbols[pos] |= (int(bits[pos * self.k + i]) & 1) << i
+
+        return symbols
 
     def _estimated_symbol_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> np.float64:
         origianl_symbols = self._convert_bits_2_symbols(origianl_bits)
@@ -208,7 +224,7 @@ class Modulation(EncoderDecoder):
             else:
                 mag = np.max(np.linalg.norm(self.symbols, axis = 1))
                 phases = np.linspace(0, 2 * np.pi, 100, endpoint = True) 
-                ax.plot(mag * np.cos(phases), mag * np.sin(phases), ls = "--", color = boundary_color)
+                ax.plot(mag * np.cos(phases), mag * np.sin(phases), ls = "--", color = boundary_color, alpha = 0.7)
 
                 mag *= 2
                 for i in range(self.M):
@@ -231,4 +247,65 @@ class Modulation(EncoderDecoder):
         )
 
         reporter.append_line(ENCODER, BLUE, f"Generando constelación {self.M}-{self.scheme}")
+        return graph_path
+
+    def _graph_constalation_data(self, bits: np.ndarray, sym: np.ndarray, reporter: Reporter) -> None:
+        if self.scheme == Scheme.FSK and self.N > 2:
+            reporter.append_line(ENCODER_CHANNEL, BLUE, f"No se puede graficar la constelación para la {self.M}-{self.scheme}")
+            return None
+
+        original_sym = self._convert_bits_2_symbols(bits)
+        def graph(ax):
+            points2show = min(5000, len(sym))
+            xs, ys = sym[:points2show, 0], np.zeros(points2show)
+            if self.N != 1:
+                ys = sym[:points2show, 1]
+
+            palette = np.array(sns.color_palette("hls", self.M))
+
+            data_colors = palette[original_sym[:points2show]]
+            ax.scatter(xs, ys, marker = "^", c = data_colors, alpha = 0.5)
+
+            xs, ys = self.symbols[:, 0], np.zeros(self.symbols[:, 0].shape)
+            if self.N != 1:
+                ys = self.symbols[:, 1]
+            ax.scatter(xs, ys, marker = "x", c = palette)
+
+            for i, (x, y) in enumerate(zip(xs * 1.1, ys * 1.1)):
+                ax.text(x, y, f"{i:0{self.k}b}", ha = "center", va = "center")
+
+            extend = 0.4
+            lim = (np.min(xs) - extend, np.max(xs) + extend)
+
+            boundary_color = "black"
+            if self.scheme == Scheme.FSK:
+                ax.plot([ *lim ], [ *lim ], ls = "--", color = boundary_color)
+
+            else:
+                mag = np.max(np.linalg.norm(self.symbols, axis = 1))
+                phases = np.linspace(0, 2 * np.pi, 100, endpoint = True) 
+                ax.plot(mag * np.cos(phases), mag * np.sin(phases), ls = "--", color = boundary_color, alpha = 0.7)
+
+                mag *= 2
+                for i in range(self.M):
+                    phase = 2 * np.pi * (i + 0.5) / self.M
+                    ax.plot([ 0, mag * np.cos(phase) ] , [ 0, mag * np.sin(phase) ], ls = "--", color = boundary_color)
+
+            ax.set_xlim(lim)
+            ax.set_ylim(lim)
+
+            ax.grid()
+            ax.legend(handles = [
+                Line2D([0], [0], color = palette[0], marker = "^", label = "Data"),
+                Line2D([0], [0], color = palette[0], marker = "x", label = "Símbolos"),
+                Line2D([0], [0], color = boundary_color, lw = 2, ls = "--", label = "Frontera de decisión"),
+            ], loc = "upper right")
+
+        graph_path = reporter.graph(
+            graph_name = f"Contelacion_{self.M}-{self.scheme}_con_datos",
+            axis = plt.figure(figsize = (10, 10)).add_subplot(),
+            graph = graph,
+        )
+
+        reporter.append_line(ENCODER_CHANNEL, BLUE, f"Generando constelación {self.M}-{self.scheme} con datos")
         return graph_path

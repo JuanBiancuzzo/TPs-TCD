@@ -21,9 +21,15 @@
 ### Resultados Modulación
 - Energía media de símbolo: **3.000** Joule
 - Energía media de bit: **1.000** Joule
-- Probabilidad de error de símbolo: **0.0603**
+- Probabilidad de error de símbolo: **0.0616**
 - Probabilidad de error de bit: **0.0205**
 
 #### Gráfico de constelación generado
 - `data/output/run1_Contelacion_8-PSK.png`
+
+
+### Resultados Canal
+
+#### Gráfico de constelación generado con datos
+- `data/output/run1_Contelacion_8-PSK_con_datos.png`
 
