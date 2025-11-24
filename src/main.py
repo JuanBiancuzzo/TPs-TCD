@@ -88,11 +88,17 @@ def main():
         run_huffman_only(args.path_in, args.out_prefix)
         return
 
-    # ---------- Pipeline completo (TODO C/D/E) ----------
+    matriz_g = np.array([
+        [1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1],
+        [0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0],
+        [0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1],
+        [0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0],
+        [0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1],
+    ])
     pipe = pipeline.Pipeline([
         file.File(out_prefix=args.out_prefix),
         source.Source(),
-        cod_channel.ChannelCoding(tamanio = 0, matriz_generadora = None),
+        cod_channel.ChannelCoding(n = 15, k = 5, matriz_generadora = matriz_g),
         modulation.Modulation(scheme = modulation.Scheme.PSK, M = 2**3),
         channel.Channel(eb_n0_db = 6),
     ], report.ReporterTerminal(args.out_prefix))
