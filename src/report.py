@@ -64,7 +64,6 @@ class ReporterTerminal(Reporter):
         self.out_prefix = out_prefix
         self.encoding = encoding
 
-        self.lines = []
         self.metric_encoders = {}
 
     def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]):
@@ -83,7 +82,7 @@ class ReporterTerminal(Reporter):
         self.metric_encoders[from_encoder].append(lines)
 
     def append_line(self, from_encoder: str, color: str, line: str):
-        self.lines.append(f"{color}[{from_encoder}]{RESET} {line}")
+        print(f"{color}[{from_encoder}]{RESET} {line}")
 
     def graph(self, graph_name: str, axis: np.ndarray, graph: Callable[[np.ndarray], None]) -> None:
         graph_path = f"{self.out_prefix}_{graph_name}"
@@ -94,9 +93,6 @@ class ReporterTerminal(Reporter):
         return graph_path
 
     def show(self):
-        for line in self.lines:
-            print(line)
-
         metrics = Path(f"{self.out_prefix}_metricas.md")
         metric_lines = []
         for from_encoder, lines in self.metric_encoders.items():
