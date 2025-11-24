@@ -32,7 +32,7 @@ class ChannelCoding(EncoderDecoder):
 
         for i, message in enumerate(np.split(bits, num_blocks)):
             # U = mensaje x G
-            new_bits[i * self.n:(i + 1) * self.n] += message @ self.G
+            new_bits[i * self.n:(i + 1) * self.n] += (message @ self.G) % 2
 
         return new_bits
 
@@ -42,7 +42,7 @@ class ChannelCoding(EncoderDecoder):
         new_bits = np.zeros(self.k * num_blocks)
         for i, message in enumerate(np.split(bits, num_blocks)):
             # sindrome = mensaje x H^T
-            syndrom = message @ self.H.T
+            syndrom = (message @ self.H.T) % 2
 
             num = int(syndrom @ self.base) # Lo transforma en número
             if num is self.tabla_sindromes:
@@ -72,7 +72,7 @@ class ChannelCoding(EncoderDecoder):
 
         for e in NumberGenerator(self.n):
             # Necesitamos generar todos los números de un bit, después de dos, etc.
-            syndrom = e @ H.T # Tiene tamaño (10,)
+            syndrom = (e @ H.T) % 2 # Tiene tamaño (10,)
             num = int(syndrom @ self.base) # Lo transforma en número
 
             if num in table_syndrome:
