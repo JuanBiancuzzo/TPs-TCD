@@ -1,9 +1,16 @@
 from abc import ABC, abstractmethod
 
+import numpy as np
+from matplotlib.gridspec import SubplotSpec
+from matplotlib.axis import Axis
+import matplotlib.pyplot as plt
+
 from collections import Counter
+from collections.abc import Callable
+
 from math import log2, ceil
 from pathlib import Path
-from typing import List, Any
+from typing import List, Any, Tuple
 from utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
 
 # para los tests usé una versión simplificada de Reporter
@@ -17,29 +24,36 @@ from utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
 
 class Reporter(ABC):
     @abstractmethod
-    def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]):
+    def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]) -> None:
         pass
 
     @abstractmethod
-    def append_metrics(self, lines: str):
+    def append_metrics(self, from_encoder: str, lines: str) -> None:
         pass
 
     @abstractmethod
-    def append_line(self, from_encoder: str, color: str, line: str):
+    def append_line(self, from_encoder: str, color: str, line: str) -> None:
         pass
 
     @abstractmethod
-    def show(self):
+    def graph(self, graph_name: str, axis: np.ndarray, graph: Callable[[np.ndarray], None]) -> None:
+        pass
+
+    @abstractmethod
+    def show(self) -> None:
         pass
 
 class EmptyReporter(Reporter):
     def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]):
         pass
 
-    def append_metrics(self, lines: str):
+    def append_metrics(self, from_encoder: str, lines: str) -> None:
         pass
 
     def append_line(self, from_encoder: str, color: str, line: str):
+        pass
+
+    def graph(self, graph_name: str, axis: np.ndarray, graph: Callable[[np.ndarray], None]) -> None:
         pass
 
     def show(self):
@@ -51,8 +65,7 @@ class ReporterTerminal(Reporter):
         self.encoding = encoding
 
         self.lines = []
-        self.metrics = Path(f"{out_prefix}_metricas.md")
-        self.metrics.write_text("")
+        self.metric_encoders = {}
 
     def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]):
         csv_path = Path(f"{self.out_prefix}_{file_name}")
@@ -64,17 +77,34 @@ class ReporterTerminal(Reporter):
         self.append_line("Reporter", BLUE, f"CSV → {csv_path}")
         return csv_path
 
-    def append_metrics(self, lines: str):
-        self.metrics.write_text(
-            self.metrics.read_text(encoding=self.encoding) + lines, encoding=self.encoding
-        )
+    def append_metrics(self, from_encoder: str, lines: str) -> None:
+        if not from_encoder in self.metric_encoders:
+            self.metric_encoders[from_encoder] = []
+        self.metric_encoders[from_encoder].append(lines)
 
     def append_line(self, from_encoder: str, color: str, line: str):
         self.lines.append(f"{color}[{from_encoder}]{RESET} {line}")
 
+    def graph(self, graph_name: str, axis: np.ndarray, graph: Callable[[np.ndarray], None]) -> None:
+        graph_path = f"{self.out_prefix}_{graph_name}"
+        graph(axis)
+        plt.tight_layout()
+        plt.savefig(graph_path)
+        self.append_line("Reporter", BLUE, f"Gráfico → {graph_path}")
+        return graph_path
+
     def show(self):
         for line in self.lines:
             print(line)
+
+        metrics = Path(f"{self.out_prefix}_metricas.md")
+        metric_lines = []
+        for from_encoder, lines in self.metric_encoders.items():
+            metric_lines.append(f"### Resultados {from_encoder}")
+            metric_lines += lines
+            metric_lines.append("\n")
+
+        metrics.write_text("\n".join(metric_lines), encoding = self.encoding)
 
 def _printable(ch: str) -> str:
     # Representación legible para espacios y controles
