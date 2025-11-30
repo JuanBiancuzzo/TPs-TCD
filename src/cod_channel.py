@@ -26,7 +26,7 @@ class ChannelCoding(EncoderDecoder):
         self.added_bits = 0 if resto == 0 else (self.k - resto)
 
         # Ajustamos los bits para que ya tengan la cantidad justa
-        bits = np.concat((bits, np.zeros(self.added_bits)))
+        bits = np.concatenate((bits, np.zeros(self.added_bits)))
         num_blocks = len(bits) // self.k # número de blockes de k bits
         new_bits = np.zeros(self.n * num_blocks)
 
@@ -61,8 +61,8 @@ class ChannelCoding(EncoderDecoder):
         # G = [ I_k : P^{(n - k) x k}]
         P = self.G[:, self.k:]
 
-        # H = [ I_(n - k) : P^T]
-        return np.concat(( np.eye(self.n - self.k), P.T ), axis = 1)
+        # H = [ P^T: I_(n - k) ]
+        return np.concatenate((P.T, np.eye(self.n - self.k)), axis = 1)
 
     def tabla_sindromes(self, H: np.ndarray) -> dict:
         # Nos guardamos e*H^T, y nos devuelve el error que se agregó
@@ -85,13 +85,32 @@ class ChannelCoding(EncoderDecoder):
         return table_syndrome
 
     def dist_minima(self) -> Tuple[int, int, int]:
-        """Devuelve (dmin, e, t)"""
-        dmin = self.k
-        for num in range(1, 2**self.k):
-            # bin lo transforma en string: 14 => 0b1110, y después contamos los 1's
-            dmin = min(dmin, bin(num).count("1"))
+        k, n = self.G.shape
 
-        return dmin, dmin - 1, int(np.floor((dmin - 1) / 2))
+        dmin = n + 1  # inicial grande
+        # recorrer todos los mensajes no nulos u (0..2^k-1), construir codeword u·G (mod 2)
+        for num in range(1, 2**k):
+            # vector u en LSB-first consistente con el resto del código
+            u = np.array([(num >> i) & 1 for i in range(k)], dtype=int)
+            codeword = (u @ self.G) % 2
+            weight = int(np.count_nonzero(codeword))
+            if 0 < weight < dmin:
+                dmin = weight
+
+        if dmin == n + 1:
+            dmin = 0
+
+        e = dmin - 1
+        t = int(np.floor((dmin - 1) / 2)) if dmin > 0 else 0
+        return dmin, e, t
+    ##def dist_minima(self) -> Tuple[int, int, int]:
+    ##    """Devuelve (dmin, e, t)"""
+    ##    dmin = self.k
+    ##    for num in range(1, 2**self.k):
+    ##        # bin lo transforma en string: 14 => 0b1110, y después contamos los 1's
+    ##        dmin = min(dmin, bin(num).count("1"))
+    ##
+    ##    return dmin, dmin - 1, int(np.floor((dmin - 1) / 2))
 
 class NumberGenerator:
     def __init__(self, n: int):
