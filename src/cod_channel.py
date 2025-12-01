@@ -45,11 +45,10 @@ class ChannelCoding(EncoderDecoder):
             syndrom = (message @ self.H.T) % 2
 
             num = int(syndrom @ self.base) # Lo transforma en número
-            if num is self.tabla_sindromes:
-                e = self.tabla_sindromes[num]
+            e = self.table[num]
 
-                # Sumamos el error para sacarlo
-                message = message ^ e
+            # Sumamos el error para sacarlo
+            message = message ^ e
 
             # Nos quedamos con los primeros k bits, que serían el mensaje original
             new_bits[i * self.k:(i + 1) * self.k] += message[:self.k]
@@ -66,7 +65,7 @@ class ChannelCoding(EncoderDecoder):
 
     def tabla_sindromes(self, H: np.ndarray) -> dict:
         # Nos guardamos e*H^T, y nos devuelve el error que se agregó
-        table_syndrome = {}
+        table_syndrome = { 0: np.zeros(self.n, dtype = int) }
         syndrom_bits = self.n - self.k
         max_syndromes = 2**syndrom_bits # Actualmente 1024
 
@@ -78,7 +77,7 @@ class ChannelCoding(EncoderDecoder):
             if num in table_syndrome:
                 continue
 
-            table_syndrome[num] = e
+            table_syndrome[num] = e.astype(int)
             if len(table_syndrome) >= max_syndromes:
                 break
 
