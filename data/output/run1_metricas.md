@@ -15,14 +15,14 @@
 - Decodificada: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque rhoncus enim pellentesque dictum sagittis. Maecena`
 
 #### Tabla CSV generada
-- `data\output\run1_tabla_huffman.csv`
+- `data/output/run1_tabla_huffman.csv`
 
 
 ### Resultados Modulación
 - Energía media de símbolo: **3.000** Joule
 - Energía media de bit: **1.000** Joule
-- Probabilidad de error de símbolo: **0.0616**
-- Probabilidad de error de bit: **0.0205**
+- Probabilidad de error de símbolo: **0.0613**
+- Probabilidad de error de bit: **0.0204**
 
 #### Gráfico de constelación generado
 - `data/output/run1_Contelacion_8-PSK.png`

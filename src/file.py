@@ -1,3 +1,4 @@
+# Módulo A – Read file
 from pathlib import Path
 
 from pipeline import EncoderDecoder
