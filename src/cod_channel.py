@@ -8,6 +8,10 @@ from pipeline import EncoderDecoder
 from utils import BLUE
 from itertools import combinations
 
+ENCODER = "Codificación"
+SAMPLE_SIZE = 3
+DESFASE = 10
+
 class ChannelCoding(EncoderDecoder):
     def __init__(self, n: int, k: int, matriz_generadora: np.ndarray):
         self.n = n
@@ -20,7 +24,7 @@ class ChannelCoding(EncoderDecoder):
         self.table = self.tabla_sindromes(self.H)
 
     def encode(self, bits: np.ndarray, reporter: Reporter) -> np.ndarray:
-        reporter.append_line("Codificación", BLUE, "Creando códigos de lineas")
+        reporter.append_line(ENCODER, BLUE, "Creando códigos de lineas")
 
         resto = len(bits) % self.k
         self.added_bits = 0 if resto == 0 else (self.k - resto)
@@ -34,25 +38,72 @@ class ChannelCoding(EncoderDecoder):
             # U = mensaje x G
             new_bits[i * self.n:(i + 1) * self.n] += (message @ self.G) % 2
 
+        table = [
+            "|              e                |         e H^T       |",
+            "|-------------------------------|---------------------|",
+        ]
+        skip = True
+        for i, (num, e) in enumerate(self.table.items()):
+            if (i > 20) and (i + 5) < len(self.table):
+                if skip:
+                    skip = False
+                    table.append("...")
+            else:
+                eHT = np.array([(num >> j) & 1 for j in range(self.n - self.k)], dtype=int)
+                table.append(f"|{print_array(e.astype(int))}|{print_array(eHT)}|")
+
+        dmin, e, t = self.dist_minima()
+        reporter.append_metrics(ENCODER, "\n".join([
+            f"- Valor de dmin: {dmin}",
+            f"- Valor de e: {e}",
+            f"- Valor de t: {t}",
+            "\n- Matriz G: ",
+            *( print_array(line.astype(int)) for line in self.G ),
+            "\n- Matriz H: ",
+            *( print_array(line.astype(int)) for line in self.H ),
+            "\n#### Tabla de simbolos",
+            *table,
+            "\n#### Muestra (codificación → canal → decodificación)",
+            f"- Secuencia inicial: {bits[DESFASE * self.k:(DESFASE + SAMPLE_SIZE) * self.k].astype(int)}",
+            f"- m * G: {new_bits[DESFASE * self.n:(DESFASE + SAMPLE_SIZE) * self.n].astype(int)}",
+        ]))
+
         return new_bits
 
     def decode(self, bits: np.ndarray, reporter: Reporter) -> np.ndarray:
         num_blocks = len(bits) // self.n # número de blockes de n bits
 
         new_bits = np.zeros(self.k * num_blocks)
+        syndroms = []
+        errors = []
+        messages = []
         for i, message in enumerate(np.split(bits, num_blocks)):
             # sindrome = mensaje x H^T
             syndrom = (message @ self.H.T) % 2
+            if len(syndroms) < SAMPLE_SIZE + DESFASE:
+                syndroms.append(syndrom)
 
             num = int(syndrom @ self.base) # Lo transforma en número
-            if num is self.tabla_sindromes:
-                e = self.tabla_sindromes[num]
+            e = self.table[num]
 
-                # Sumamos el error para sacarlo
-                message = message ^ e
+            # Sumamos el error para sacarlo
+            message = message ^ e
+
+            if len(errors) < SAMPLE_SIZE + DESFASE:
+                errors.append(e)
+
+            if len(messages) < SAMPLE_SIZE + DESFASE:
+                messages.append(message)
 
             # Nos quedamos con los primeros k bits, que serían el mensaje original
             new_bits[i * self.k:(i + 1) * self.k] += message[:self.k]
+
+        reporter.append_metrics(ENCODER, "\n".join([
+            f"- Recibido: {bits[DESFASE * self.n:(DESFASE + SAMPLE_SIZE) * self.n].astype(int)}",
+            f"- e * H^T: \n\t{'\n\t'.join(syndrom.__str__() for syndrom in syndroms[-SAMPLE_SIZE:])}",
+            f"- e: \n\t{'\n\t'.join(error.__str__() for error in errors[-SAMPLE_SIZE:])}",
+            f"- Decodificador: {'\n\t'.join(message.__str__() for message in messages[-SAMPLE_SIZE:])}",
+        ]))
 
         range_bits = slice(self.k * num_blocks - self.added_bits)
         return new_bits[range_bits]
@@ -62,23 +113,22 @@ class ChannelCoding(EncoderDecoder):
         P = self.G[:, self.k:]
 
         # H = [ P^T: I_(n - k) ]
-        return np.concatenate((P.T, np.eye(self.n - self.k)), axis = 1)
+        return np.concatenate((P.T, np.eye(self.n - self.k)), axis = 1).astype(int)
 
     def tabla_sindromes(self, H: np.ndarray) -> dict:
         # Nos guardamos e*H^T, y nos devuelve el error que se agregó
-        table_syndrome = {}
-        syndrom_bits = self.n - self.k
-        max_syndromes = 2**syndrom_bits # Actualmente 1024
+        table_syndrome = { 0: np.zeros(self.n, dtype = int) }
+        max_syndromes = 2**(self.n - self.k) # Actualmente 1024
 
         for e in NumberGenerator(self.n):
             # Necesitamos generar todos los números de un bit, después de dos, etc.
             syndrom = (e @ H.T) % 2 # Tiene tamaño (10,)
             num = int(syndrom @ self.base) # Lo transforma en número
 
-            if num in table_syndrome:
+            if num in table_syndrome or num == 0:
                 continue
 
-            table_syndrome[num] = e
+            table_syndrome[num] = e.astype(int)
             if len(table_syndrome) >= max_syndromes:
                 break
 
@@ -103,14 +153,9 @@ class ChannelCoding(EncoderDecoder):
         e = dmin - 1
         t = int(np.floor((dmin - 1) / 2)) if dmin > 0 else 0
         return dmin, e, t
-    ##def dist_minima(self) -> Tuple[int, int, int]:
-    ##    """Devuelve (dmin, e, t)"""
-    ##    dmin = self.k
-    ##    for num in range(1, 2**self.k):
-    ##        # bin lo transforma en string: 14 => 0b1110, y después contamos los 1's
-    ##        dmin = min(dmin, bin(num).count("1"))
-    ##
-    ##    return dmin, dmin - 1, int(np.floor((dmin - 1) / 2))
+
+def print_array(array: np.ndarray) -> str:
+    return f"{array.__str__().replace('[', ' ').replace(']', ' ')}" 
 
 class NumberGenerator:
     def __init__(self, n: int):
