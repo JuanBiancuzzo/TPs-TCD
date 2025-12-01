@@ -2,3 +2,5 @@ scipy
 numpy>=1.26
 matplotlib>=3.8
 huffman==0.1.2
+seaborn>=0.13.2
+pandas>=2.0

@@ -62,7 +62,7 @@ class Modulation(EncoderDecoder):
         num_symbols = int(np.ceil(len(bits) / self.k)) #número de símbolos requeridos
         resto = len(bits) % self.k
         self.added_bits = 0 if resto == 0 else (self.k - resto)
-        self.bits = np.concat((bits, np.zeros(self.added_bits, dtype = bits.dtype)))
+        self.bits = np.concatenate((bits, np.zeros(self.added_bits, dtype = bits.dtype)))
 
         reporter.append_line(ENCODER, BLUE, f"Mapeando de {self.M}-{self.scheme} con {self.k} bits a símbolos")
         
@@ -167,12 +167,17 @@ class Modulation(EncoderDecoder):
     def _convert_bits_2_symbols(self, bits: np.ndarray) -> np.ndarray:
         num_symbols = int(np.ceil(len(bits) / self.k)) #número de símbolos requeridos
         resto = len(bits) % self.k
-        bits = np.concat((bits, np.zeros(resto)))
+        # Agregar padding si es necesario (completar el último símbolo con ceros)
+        if resto != 0:
+            padding_needed = self.k - resto
+            bits = np.concatenate((bits, np.zeros(padding_needed, dtype=bits.dtype)))
         symbols = np.zeros(num_symbols, dtype = int)
 
         for pos in range(num_symbols):
-            for i in range(self.k): 
-                symbols[pos] |= (int(bits[pos * self.k + i]) & 1) << i
+            for i in range(self.k):
+                idx = pos * self.k + i
+                if idx < len(bits):  # Verificar límites
+                    symbols[pos] |= (int(bits[idx]) & 1) << i
 
         return symbols
 

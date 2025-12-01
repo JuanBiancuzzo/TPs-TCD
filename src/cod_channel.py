@@ -118,7 +118,8 @@ class ChannelCoding(EncoderDecoder):
     def tabla_sindromes(self, H: np.ndarray) -> dict:
         # Nos guardamos e*H^T, y nos devuelve el error que se agregó
         table_syndrome = { 0: np.zeros(self.n, dtype = int) }
-        max_syndromes = 2**(self.n - self.k) # Actualmente 1024
+        syndrom_bits = self.n - self.k
+        max_syndromes = 2**syndrom_bits # Actualmente 1024
 
         for e in NumberGenerator(self.n):
             # Necesitamos generar todos los números de un bit, después de dos, etc.
