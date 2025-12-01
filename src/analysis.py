@@ -122,8 +122,12 @@ def pb_fsk_theoretical(M: int, ebn0_linear: float) -> float:
     if M == 2:
         return pe
     else:
-        # Para M > 2: Pb ≈ (M/2) / (M-1) * Pe
-        return (M / 2.0) / (M - 1) * pe
+        # Para M > 2: Pb ≈ (M/2) * Q(sqrt(k*Eb/N0))
+        # Como Pe = (M-1) * Q(...), entonces Pb = (M/2) / (M-1) * Pe = (M/2) * Q(...)
+        # El (M-1) se cancela, así que calculamos directamente
+        k = log2(M)
+        arg = np.sqrt(k * ebn0_linear)
+        return (M / 2.0) * q_function(arg)
 
 
 def run_system_analysis(
