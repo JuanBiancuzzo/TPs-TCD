@@ -37,7 +37,7 @@ def main():
         source.Source(),
         cod_channel.ChannelCoding(n = 15, k = 5, matriz_generadora = matriz_g),
         modulation.Modulation(scheme = modulation.Scheme.PSK, M = 2**3),
-        channel.Channel(eb_n0_db = 6),
+        channel.Channel(eb_n0_db = 2),
     ], report.ReporterTerminal(args.out_prefix))
 
     path_out = pipe.run(args.path_in)
