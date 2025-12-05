@@ -42,7 +42,7 @@ def pe_psk_theoretical(M: int, ebn0_linear: float) -> float:
         return 1.0
     
     arg = np.sqrt(2 * k * ebn0_linear) * sin(pi / M)
-    return 2 * q_function(arg)
+    return (1 if M == 2 else 2) * q_function(arg)
 
 
 def pb_psk_theoretical(M: int, ebn0_linear: float) -> float:
@@ -174,6 +174,7 @@ def run_system_analysis(
         [0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0],
         [0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1],
     ])
+    k, n = matriz_g.shape
     
     # Lista para almacenar resultados
     results = []
@@ -193,11 +194,16 @@ def run_system_analysis(
                 
                 # Codificación de canal (opcional)
                 if use_channel_coding:
-                    channel_coder = ChannelCoding(n=15, k=5, matriz_generadora=matriz_g)
+                    channel_coder = ChannelCoding(n=n, k=k, matriz_generadora=matriz_g)
                     bits = channel_coder.encode(bits, reporter)
+
+                scale_energy = 1.0
+                if use_channel_coding:
+                    # Ec = Eb * k/n 
+                    scale_energy = k / n
                 
                 # Modulación
-                modulator = Modulation(scheme=mod_scheme_enum, M=M)
+                modulator = Modulation(scheme=mod_scheme_enum, M=M, scale_energy = scale_energy)
                 symbols = modulator.encode(bits, reporter)
                 
                 # Canal AWGN
@@ -221,7 +227,6 @@ def run_system_analysis(
                 # Calcular SER (Pe_sim) - usar método interno de Modulation
                 # Este método convierte bits a símbolos y compara
                 # Asegurar que ambos arrays tengan la misma longitud (múltiplo de k para evitar problemas)
-                k = modulator.k
                 # Truncar a múltiplo de k para evitar problemas en la conversión a símbolos
                 trunc_len = (min_len // k) * k
                 if trunc_len > 0:

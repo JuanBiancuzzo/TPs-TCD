@@ -31,12 +31,13 @@ def main():
         [0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0],
         [0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1],
     ])
+    k, n = matriz_g.shape
 
     pipe = pipeline.Pipeline([
         file.File(out_prefix=args.out_prefix),
         source.Source(),
-        cod_channel.ChannelCoding(n = 15, k = 5, matriz_generadora = matriz_g),
-        modulation.Modulation(scheme = modulation.Scheme.PSK, M = 2**3),
+        cod_channel.ChannelCoding(n = n, k = k, matriz_generadora = matriz_g),
+        modulation.Modulation(scheme = modulation.Scheme.PSK, M = 2**3, scale_energy = k / n),
         channel.Channel(eb_n0_db = 2),
     ], report.ReporterTerminal(args.out_prefix))
 

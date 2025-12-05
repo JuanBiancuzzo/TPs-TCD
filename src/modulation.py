@@ -24,13 +24,13 @@ class Scheme(Enum):
 
 # Vamos a tomar E_b = 1
 class Modulation(EncoderDecoder):
-    def __init__(self, scheme: Scheme = Scheme.PSK, M: int = 2):
+    def __init__(self, scheme: Scheme = Scheme.PSK, M: int = 2, scale_energy: float = 1.0):
         self.scheme = scheme
         self.M = M               # Número de símbolos
         self.N = 0               # Dimensiones
         self.k = int(np.log2(M)) # bits por símbolo
         self.added_bits = 0      # padding bits
-        self.batchs = 1000       # tamaño de batch 
+        self.batchs = 5000       # tamaño de batch 
 
         if scheme == Scheme.FSK:
             self.symbols = np.eye(M)
@@ -50,7 +50,7 @@ class Modulation(EncoderDecoder):
                 self.symbols[Modulation._bin_to_gray(i)] += symbols[i]
 
         # Como E_b = 1 entonces E_s = k * E_b = k => sqrt(E_s) = sqrt(k)
-        self.symbols *= np.sqrt(self.k)
+        self.symbols *= np.sqrt(self.k * scale_energy)
     
     @staticmethod
     def _bin_to_gray(n: int) -> int:
