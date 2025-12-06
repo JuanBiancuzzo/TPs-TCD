@@ -38,7 +38,7 @@ class Source(EncoderDecoder):
 
         return np.array(self._encode_text(text), dtype=np.uint8)
 
-    def decode(self, bits: List[Bit], reporter: Reporter = None) -> str:
+    def decode(self, bits: List[Bit], reporter: Reporter) -> str:
         """
         Decodifica una secuencia de bits en un texto usando el diccionario inverso.
 
@@ -67,7 +67,15 @@ class Source(EncoderDecoder):
                 buf.clear()
 
         # Si quedan bits sin cerrar, se ignoran (robustez ante ruido)
-        return "".join(out_chars)
+        result = "".join(out_chars)
+
+        reporter.append_metrics(ENCODER, "\n".join([
+            "\n#### Muestra durante todo el proceso\n",
+            f"- Línea: `{self.sample_line}`",
+            f"- Decodificada: `{result[:len(self.sample_line)]}`",
+        ]))
+
+        return result
 
     def _encode_text(self, text: str) -> List[Bit]:
         bits: List[Bit] = []
@@ -78,10 +86,7 @@ class Source(EncoderDecoder):
     def _report(self, text: str, reporter: Reporter):
         reporter.append_line(ENCODER, utils.BLUE, "Construyendo código Huffman")
 
-        sample_line     = _first_nonempty_line(text)[:120]
-        sample_bits     = self._encode_text(sample_line)
-        sample_bits_str = "".join(str(b) for b in sample_bits)
-        sample_dec      = self.decode(sample_bits)
+        self.sample_line = _first_nonempty_line(text)[:120]
 
         H     = self.entropy()
         Lavg  = self.avg_code_length()
@@ -108,11 +113,7 @@ class Source(EncoderDecoder):
             f"- Código de longitud fija (p.ej. ASCII para k símbolos): **{Lfix}** bits/símbolo",
             f"- Alfabeto (k): **{len(self.probs)}** símbolos",
             "\n---\n",
-            "#### Muestra (línea → binario → decodificada)\n",
-            f"- Línea: `{sample_line}`",
-            f"- Binario: `{sample_bits_str}`",
-            f"- Decodificada: `{sample_dec}`",
-            "\n#### Tabla CSV generada",
+            "#### Tabla CSV generada",
             f"- `{result_path}`",
         ])
         reporter.append_metrics(ENCODER, report_metrics)
