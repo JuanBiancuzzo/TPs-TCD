@@ -8,7 +8,7 @@ import numpy as np
 # Módulos del proyecto
 import modulation
 from utils import MAGENTA, RESET
-from cli import parse_args, dry_run, run_huffman_only, run_system_analysis_mode, run_complete_mode
+from cli import parse_args, dry_run, run_huffman_only, run_system_analysis_mode, run_complete_mode, run_without_code
 
 def main() -> None:
     print(f"\n{MAGENTA}¡Bienvenido al TP TA137!{RESET}\n")
@@ -23,6 +23,14 @@ def main() -> None:
     if args.huffman_only:
         run_huffman_only(args.path_in, args.out_prefix)
         return
+
+    scheme = modulation.Scheme.PSK
+    M = 2**3
+    eb_no_db = args.ebn0
+
+    if args.witout_code:
+        run_without_code(args.path_in, args.out_prefix, scheme, M, eb_no_db)
+        return
     
     matriz_g = np.array([
         [1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1],
@@ -35,10 +43,6 @@ def main() -> None:
     if args.analyze_system:
         run_system_analysis_mode(args.path_in, args.out_prefix, matriz_g)
         return
-
-    scheme = modulation.Scheme.PSK
-    M = 2**3
-    eb_no_db = 6
 
     run_complete_mode(args.path_in, args.out_prefix, matriz_g, scheme, M, eb_no_db)
 

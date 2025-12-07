@@ -27,14 +27,23 @@ def parse_args():
     ap = argparse.ArgumentParser(description="TP TA137")
     ap.add_argument("--in", dest="path_in", default="data/input/texto.txt",
                     help="ruta al .txt de entrada (default: data/input/texto.txt)")
+
     ap.add_argument("--out-prefix", default="data/output/run1",
                     help="prefijo de salida (default: data/output/run1)")
+
     ap.add_argument("--ebn0", type=float, default=6.0, help="Eb/N0 en dB (para canal)")
+
     ap.add_argument("--dry-run", action="store_true", help="no procesa: copia el texto tal cual")
+
     ap.add_argument("--huffman-only", action="store_true",
                     help="ejecuta solo Módulo B (cod/dec de fuente)")
+
     ap.add_argument("--analyze-system", "--module-f", dest="analyze_system", action="store_true",
                     help="ejecuta Módulo F: análisis del sistema (BER/SER vs Eb/N0)")
+
+    ap.add_argument("--without-code", dest="witout_code", action="store_true",
+                    help="ejecuta el pipeline completo sin el bloque de codificacion de canal")
+
     return ap.parse_args()
 
 def dry_run(path_in: str, out_prefix: str):
@@ -121,6 +130,17 @@ def run_system_analysis_mode(path_in: str, out_prefix: str, matriz_g: np.ndarray
     reporter.append_line(analysis.ENCODER, YELLOW, "Análisis completado exitosamente")
     reporter.append_line(analysis.ENCODER, YELLOW, f"\t- Gráficos generados: {len(plot_paths)}")
     reporter.append_line(analysis.ENCODER, YELLOW, "\n\t\t".join([ f"- {path}" for path in plot_paths ]))
+
+def run_without_code(path_in: str, out_prefix: str, scheme: modulation.Scheme, M: int, eb_no_db: float):
+    pipe = pipeline.Pipeline([
+        file.File(out_prefix = out_prefix),
+        source.Source(),
+        modulation.Modulation(scheme = scheme, M = M),
+        channel.Channel(eb_n0_db = eb_no_db),
+    ], report.ReporterTerminal(out_prefix))
+
+    path_out = pipe.run(path_in)
+    print(f"{GREEN}[Salida]{RESET} Texto recibido -> {path_out}\n")
 
 def run_complete_mode(path_in: str, out_prefix: str, matriz_g: np.ndarray, scheme: modulation.Scheme, M: int, eb_no_db: float):
     k, n = matriz_g.shape

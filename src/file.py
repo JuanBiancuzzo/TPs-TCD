@@ -21,7 +21,8 @@ class File(EncoderDecoder):
         return text
 
     def decode(self, text: str, reporter: Reporter) -> str:
-        out_path = Path(f"{self.out_prefix}_recibido.txt")
+        out_path = Path(f"{self.out_prefix}/recibido.txt")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(text, encoding=self.encoding)
+        reporter.append_line("File", BLUE, f"Escribiendo el archivo recibido: {out_path}")
         return out_path

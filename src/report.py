@@ -65,7 +65,7 @@ class ReporterTerminal(Reporter):
         self.metric_encoders = {}
 
     def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]):
-        csv_path = Path(f"{self.out_prefix}_{file_name}")
+        csv_path = Path(f"{self.out_prefix}/{file_name}")
         with csv_path.open("w", encoding=self.encoding) as f:
             f.write(",".join(headers) + "\n")
             for line in data:
@@ -83,7 +83,7 @@ class ReporterTerminal(Reporter):
         print(f"{color}[{from_encoder}]{RESET} {line}")
 
     def graph(self, graph_name: str, axis: np.ndarray, graph: Callable[[np.ndarray], None]) -> None:
-        graph_path = f"{self.out_prefix}_{graph_name}"
+        graph_path = f"{self.out_prefix}/{graph_name}"
         graph(axis)
         plt.tight_layout()
         plt.savefig(graph_path)
@@ -92,7 +92,7 @@ class ReporterTerminal(Reporter):
         return graph_path
 
     def show(self):
-        metrics = Path(f"{self.out_prefix}_metricas.md")
+        metrics = Path(f"{self.out_prefix}/metricas.md")
         metric_lines = []
         for from_encoder, lines in self.metric_encoders.items():
             metric_lines.append(f"### Resultados {from_encoder}")
