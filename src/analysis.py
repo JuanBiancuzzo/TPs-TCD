@@ -3,7 +3,7 @@ Módulo F - Análisis del sistema
 Realiza análisis comparativo del rendimiento del sistema de comunicación
 bajo diferentes condiciones (esquemas de modulación, niveles M, codificación de canal, etc.)
 """
-from typing import Sequence, Dict, List
+from typing import Dict, List
 import numpy as np
 import pandas as pd
 from scipy.special import erfc
@@ -18,7 +18,7 @@ from source import Source
 from modulation import Modulation, Scheme
 from channel import Channel
 from cod_channel import ChannelCoding
-from utils import BLUE, YELLOW, RED
+from utils import BLUE, YELLOW, RED, MAGENTA
 
 MODULATION_ORDER = "M"
 EBNO = "ebn0_db"
@@ -26,6 +26,7 @@ SIMULATION = "sim"
 THEORY = "theory"
 
 ENCODER = "Análisis"
+MIN_ERROR_COUNT = 100
 
 class SymbolRep(Enum):
     SYMBOL = 0
@@ -170,7 +171,7 @@ def run_system_analysis(
     source = Source()
     complete_encoding = source.encode(input_text, reporter)
 
-    bit_ranges = [ slice(0, len(complete_encoding) // 2**(i - 1)) for i in range(8, 0, -1) ]
+    bit_ranges = [ slice(0, len(complete_encoding) // 2**(i - 1)) for i in range(10, 0, -1) ]
     
     # Lista para almacenar resultados
     results = {}
@@ -236,37 +237,14 @@ def run_system_analysis(
                 # Decodificación de canal (opcional)
                 if use_channel_coding:
                     bits_demod = channel_coder.decode(bits_demod, reporter)
-                
-                # Calcular BER (Pb_sim) - comparar bits originales con recibidos
-                # Asegurar que ambos arrays tengan la misma longitud
-                min_len = min(len(bits_original), len(bits_demod))
-                bits_original_trunc = bits_original[:min_len]
-                bits_demod_trunc = bits_demod[:min_len]
-                Pb_sim = np.mean(bits_original_trunc != bits_demod_trunc).astype(float)
-                
-                # Calcular SER (Pe_sim) - usar método interno de Modulation
-                # Este método convierte bits a símbolos y compara
-                # Asegurar que ambos arrays tengan la misma longitud (múltiplo de k para evitar problemas)
-                # Truncar a múltiplo de k para evitar problemas en la conversión a símbolos
-                trunc_len = (min_len // k) * k
-                if trunc_len > 0:
-                    bits_original_for_ser = bits_original_trunc[:trunc_len]
-                    bits_demod_for_ser = bits_demod_trunc[:trunc_len]
-                    Pe_sim = modulator._estimated_symbol_error_proba(
-                        bits_original_for_ser, bits_demod_for_ser
-                    ).astype(float)
-                else:
-                    Pe_sim = np.nan
 
+                Pb_sim, bit_error_count = modulator._estimated_bit_error_proba(bits_original, bits_demod)
+                Pe_sim, symbol_error_count = modulator._estimated_symbol_error_proba(*( 
+                    np.concatenate((bits, np.zeros(modulator.added_bits, dtype = bits.dtype))) 
+                    for bits in [bits_original, bits_demod] 
+                ))
                 
-                # Calcular valores teóricos
-                ebn0_linear = 10**(ebn0_db / 10.0)
-                if scheme == Scheme.PSK:
-                    Pb_theory = pb_psk_theoretical(M, ebn0_linear)
-                elif scheme == Scheme.FSK:
-                    Pb_theory = pb_fsk_theoretical(M, ebn0_linear)
-
-                if Pb_sim * 10 < Pb_theory:
+                if bit_error_count < MIN_ERROR_COUNT or symbol_error_count < MIN_ERROR_COUNT:
                     double_counter += 1
 
                     if double_counter < len(bit_ranges):
@@ -275,7 +253,7 @@ def run_system_analysis(
                     else:
                         ebno_counter += 1
                         double_counter = 0
-                        reporter.append_line(ENCODER, RED, "Se llego al maximo de bits, se ignora la medicion")
+                        reporter.append_line(ENCODER, MAGENTA, "Se llego al maximo de bits, se ignora la medicion")
                         
                     continue
 

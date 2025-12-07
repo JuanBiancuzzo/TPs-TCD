@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from typing import Tuple
 
 from pipeline import EncoderDecoder
 from report import Reporter
@@ -139,8 +140,8 @@ class Modulation(EncoderDecoder):
         range_bits = slice(self.k * num_symbols - self.added_bits)
 
         # en este punto se deberia poner pero hay que ver como agregarlo en el reporter
-        symbol_error_proba = self._estimated_symbol_error_proba(self.bits, bits)
-        bit_error_proba = self._estimated_bit_error_proba(self.bits[range_bits], bits[range_bits])
+        symbol_error_proba, _ = self._estimated_symbol_error_proba(self.bits, bits)
+        bit_error_proba, _ = self._estimated_bit_error_proba(self.bits[range_bits], bits[range_bits])
 
         report_metrics = [
             f"- Probabilidad de error de símbolo: **{symbol_error_proba:.4f}**",
@@ -181,14 +182,18 @@ class Modulation(EncoderDecoder):
 
         return symbols
 
-    def _estimated_symbol_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> np.float64:
+    def _estimated_symbol_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> Tuple[np.float64, int]:
         origianl_symbols = self._convert_bits_2_symbols(origianl_bits)
         demodulated_symbols = self._convert_bits_2_symbols(demodulated_bits)
 
-        return np.mean((origianl_symbols != demodulated_symbols).astype(int))
+        diff = (origianl_symbols != demodulated_symbols).astype(int)
 
-    def _estimated_bit_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> np.float64:
-        return np.mean((origianl_bits != demodulated_bits).astype(int))
+        return np.mean(diff), np.sum(diff)
+
+    def _estimated_bit_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> Tuple[np.float64, int]:
+        diff = (origianl_bits != demodulated_bits).astype(int)
+
+        return np.mean(diff), np.sum(diff)
         
     def _estimated_simbol_energy(self, sym: np.ndarray) -> np.ndarray:
         # Por la relación de Parseval se puede calcular la energía de simbolo por 
