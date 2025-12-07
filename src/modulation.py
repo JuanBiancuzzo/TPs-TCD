@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from typing import Tuple
 
 from pipeline import EncoderDecoder
 from report import Reporter
@@ -24,13 +25,13 @@ class Scheme(Enum):
 
 # Vamos a tomar E_b = 1
 class Modulation(EncoderDecoder):
-    def __init__(self, scheme: Scheme = Scheme.PSK, M: int = 2):
+    def __init__(self, scheme: Scheme = Scheme.PSK, M: int = 2, scale_energy: float = 1.0):
         self.scheme = scheme
         self.M = M               # Número de símbolos
         self.N = 0               # Dimensiones
         self.k = int(np.log2(M)) # bits por símbolo
         self.added_bits = 0      # padding bits
-        self.batchs = 1000       # tamaño de batch 
+        self.batchs = 5000       # tamaño de batch 
 
         if scheme == Scheme.FSK:
             self.symbols = np.eye(M)
@@ -50,7 +51,7 @@ class Modulation(EncoderDecoder):
                 self.symbols[Modulation._bin_to_gray(i)] += symbols[i]
 
         # Como E_b = 1 entonces E_s = k * E_b = k => sqrt(E_s) = sqrt(k)
-        self.symbols *= np.sqrt(self.k)
+        self.symbols *= np.sqrt(self.k * scale_energy)
     
     @staticmethod
     def _bin_to_gray(n: int) -> int:
@@ -139,8 +140,8 @@ class Modulation(EncoderDecoder):
         range_bits = slice(self.k * num_symbols - self.added_bits)
 
         # en este punto se deberia poner pero hay que ver como agregarlo en el reporter
-        symbol_error_proba = self._estimated_symbol_error_proba(self.bits, bits)
-        bit_error_proba = self._estimated_bit_error_proba(self.bits[range_bits], bits[range_bits])
+        symbol_error_proba, _ = self._estimated_symbol_error_proba(self.bits, bits)
+        bit_error_proba, _ = self._estimated_bit_error_proba(self.bits[range_bits], bits[range_bits])
 
         report_metrics = [
             f"- Probabilidad de error de símbolo: **{symbol_error_proba:.4f}**",
@@ -181,14 +182,18 @@ class Modulation(EncoderDecoder):
 
         return symbols
 
-    def _estimated_symbol_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> np.float64:
+    def _estimated_symbol_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> Tuple[np.float64, int]:
         origianl_symbols = self._convert_bits_2_symbols(origianl_bits)
         demodulated_symbols = self._convert_bits_2_symbols(demodulated_bits)
 
-        return np.mean((origianl_symbols != demodulated_symbols).astype(int))
+        diff = (origianl_symbols != demodulated_symbols).astype(int)
 
-    def _estimated_bit_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> np.float64:
-        return np.mean((origianl_bits != demodulated_bits).astype(int))
+        return np.mean(diff), np.sum(diff)
+
+    def _estimated_bit_error_proba(self, origianl_bits: np.ndarray, demodulated_bits: np.ndarray) -> Tuple[np.float64, int]:
+        diff = (origianl_bits != demodulated_bits).astype(int)
+
+        return np.mean(diff), np.sum(diff)
         
     def _estimated_simbol_energy(self, sym: np.ndarray) -> np.ndarray:
         # Por la relación de Parseval se puede calcular la energía de simbolo por 

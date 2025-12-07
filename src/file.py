@@ -6,7 +6,7 @@ from report import Reporter
 from utils import BLUE
 
 class File(EncoderDecoder):
-    def __init__(self, out_prefix: str, encoding: str = "utf-8"):
+    def __init__(self, out_prefix: str = "", encoding: str = "utf-8"):
         self.out_prefix = out_prefix
         self.encoding = encoding
 
@@ -14,12 +14,15 @@ class File(EncoderDecoder):
         """
         Leer el archivo de entrada, con el encoding especificado
         """
-        if reporter is not None:
-            reporter.append_line("File", BLUE, f"Leyendo archivo: {path_in}")
-        return Path(path_in).read_text(encoding=self.encoding)
+        reporter.append_line("File", BLUE, f"Leyendo archivo: {path_in}")
+        text = Path(path_in).read_text(encoding=self.encoding)
+
+        reporter.append_line("File", BLUE, f"Se leyó {len(text)} bytes")
+        return text
 
     def decode(self, text: str, reporter: Reporter) -> str:
-        out_path = Path(f"{self.out_prefix}_recibido.txt")
+        out_path = Path(f"{self.out_prefix}/recibido.txt")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(text, encoding=self.encoding)
+        reporter.append_line("File", BLUE, f"Escribiendo el archivo recibido: {out_path}")
         return out_path

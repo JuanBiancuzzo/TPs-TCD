@@ -2,17 +2,20 @@
 Funciones auxiliares para la interfaz de línea de comandos.
 Módulo que contiene parse_args, dry_run, y run_huffman_only.
 """
+import numpy as np
+from pathlib import Path
 
-import argparse
 import pipeline
-import file
-import source
+import file            # Módulo A – Read file
+import source          # Módulo B – Huffman
+import modulation      # Módulo C – Modulación/Demodulación
+import channel         # Módulo D – Efectos del canal (AWGN, atenuación)
+import cod_channel     # Módulo E – Codificación de canal (códigos lineales de bloques)
+import argparse
 import report
 import analysis
-import pandas as pd
-from pathlib import Path
-from utils import GREEN, BLUE, YELLOW, RESET
 
+from utils import GREEN, BLUE, YELLOW, RESET
 
 def parse_args():
     """
@@ -24,16 +27,24 @@ def parse_args():
     ap = argparse.ArgumentParser(description="TP TA137")
     ap.add_argument("--in", dest="path_in", default="data/input/texto.txt",
                     help="ruta al .txt de entrada (default: data/input/texto.txt)")
+
     ap.add_argument("--out-prefix", default="data/output/run1",
                     help="prefijo de salida (default: data/output/run1)")
+
     ap.add_argument("--ebn0", type=float, default=6.0, help="Eb/N0 en dB (para canal)")
+
     ap.add_argument("--dry-run", action="store_true", help="no procesa: copia el texto tal cual")
+
     ap.add_argument("--huffman-only", action="store_true",
                     help="ejecuta solo Módulo B (cod/dec de fuente)")
+
     ap.add_argument("--analyze-system", "--module-f", dest="analyze_system", action="store_true",
                     help="ejecuta Módulo F: análisis del sistema (BER/SER vs Eb/N0)")
-    return ap.parse_args()
 
+    ap.add_argument("--without-code", dest="witout_code", action="store_true",
+                    help="ejecuta el pipeline completo sin el bloque de codificacion de canal")
+
+    return ap.parse_args()
 
 def dry_run(path_in: str, out_prefix: str):
     """
@@ -49,7 +60,6 @@ def dry_run(path_in: str, out_prefix: str):
     print(f"{BLUE}[DryRun]{RESET} Se copió el archivo de entrada a la salida (sin procesar).")
     print(f"{GREEN}[Salida]{RESET} {path_out}")
 
-
 def run_huffman_only(path_in: str, out_prefix: str):
     """
     Ejecuta solo Módulo B:
@@ -60,15 +70,14 @@ def run_huffman_only(path_in: str, out_prefix: str):
     """
 
     pipe = pipeline.Pipeline([
-        file.File(out_prefix),
+        file.File(out_prefix = out_prefix),
         source.Source(),
     ], report.ReporterTerminal(out_prefix))
 
     path_out = pipe.run(path_in)
     print(f"{GREEN}[Salida]{RESET} {path_out}\n")
 
-
-def run_system_analysis_mode(out_prefix: str):
+def run_system_analysis_mode(path_in: str, out_prefix: str, matriz_g: np.ndarray):
     """
     Ejecuta Módulo F: Análisis del sistema.
     
@@ -77,141 +86,72 @@ def run_system_analysis_mode(out_prefix: str):
       - Con codificación de canal (combinación fija: PSK, M=8)
       - Genera gráficos comparativos
     """
-    print(f"{BLUE}[Módulo F]{RESET} Iniciando análisis del sistema...\n")
-    
-    # Configurar reporter
-    reporter = report.ReporterTerminal(out_prefix)
-    # Usar data/analysis para todos los archivos de análisis
-    analysis_dir = Path("data/analysis")
-    analysis_dir.mkdir(parents=True, exist_ok=True)
+    reporter = report.ReporterAnalysis()
+    reporter.append_line(analysis.ENCODER, YELLOW, "Iniciando análisis del sistema")
     
     # Configuración de parámetros
-    ebn0_range = range(0, 11)  # 0 a 10 dB
-    n_bits = 100_000
-    mod_schemes = ("psk", "fsk")
-    M_list = (2, 4, 8, 16)
+    ebn0_range = list(range(0, 11))  # 0 a 10 dB
+    mod_schemes = [modulation.Scheme.PSK, modulation.Scheme.FSK]
+    M_list = [2, 4, 8, 16]
     
-    print(f"{BLUE}[Módulo F]{RESET} Parámetros:")
-    print(f"  - Eb/N0: {ebn0_range.start} a {ebn0_range.stop-1} dB")
-    print(f"  - Esquemas: {', '.join(mod_schemes).upper()}")
-    print(f"  - M: {M_list}")
-    print(f"  - Bits por simulación: {n_bits:,}")
-    print()
-    
-    # 1. Análisis sin codificación de canal
-    print(f"{BLUE}[Módulo F]{RESET} Ejecutando análisis sin codificación de canal...")
-    print("  (Esto puede tomar varios minutos)\n")
-    
-    df_no_coding = analysis.run_system_analysis(
-        ebn0_db_range=ebn0_range,
-        n_bits=n_bits,
-        mod_schemes=mod_schemes,
-        M_list=M_list,
-        use_channel_coding=False,
-        reporter=reporter,
-    )
-    
-    # 2. Análisis con codificación de canal (combinación fija: PSK, M=8)
-    print(f"\n{BLUE}[Módulo F]{RESET} Ejecutando análisis con codificación de canal...")
-    print("  Combinación: PSK, M=8")
-    print("  (Esto puede tomar varios minutos)\n")
-    
-    df_with_coding = analysis.run_system_analysis(
-        ebn0_db_range=ebn0_range,
-        n_bits=n_bits,
-        mod_schemes=("psk",),
-        M_list=(8,),
-        use_channel_coding=True,
-        reporter=reporter,
-    )
-    
-    # Combinar DataFrames
-    df_combined = pd.concat([df_no_coding, df_with_coding], ignore_index=True)
+    dfs = []
+    for use_channel_coding in [False, True]:
+        dfs.append(analysis.run_system_analysis(
+            path_in = path_in,
+            ebn0_db_range = ebn0_range,
+            matriz_g = matriz_g,
+            schemes = mod_schemes,
+            M_list = M_list,
+            use_channel_coding = use_channel_coding,
+            reporter = reporter,
+        ))
+
+    dfs_without_code, dfs_with_code = dfs[0], dfs[1]
     
     # Guardar resultados en CSV
-    csv_path = analysis_dir / "analysis_results.csv"
-    df_combined.to_csv(csv_path, index=False)
-    print(f"{GREEN}[Módulo F]{RESET} Resultados guardados en: {csv_path}\n")
-    
-    # 3. Generar gráficos
-    print(f"{BLUE}[Módulo F]{RESET} Generando gráficos...\n")
-    plot_paths = []
-    
-    try:
-        # Pe vs Eb/N0 para PSK
-        path = analysis.plot_pe_vs_ebn0(df_combined, "psk", str(analysis_dir), reporter)
-        plot_paths.append(path)
-        print(f"  ✅ {Path(path).name}")
-    except Exception as e:
-        print(f"  ⚠️  Error generando Pe PSK: {e}")
-    
-    try:
-        # Pb vs Eb/N0 para PSK
-        path = analysis.plot_pb_vs_ebn0(df_combined, "psk", str(analysis_dir), reporter)
-        plot_paths.append(path)
-        print(f"  ✅ {Path(path).name}")
-    except Exception as e:
-        print(f"  ⚠️  Error generando Pb PSK: {e}")
-    
-    try:
-        # Pe vs Eb/N0 para FSK
-        path = analysis.plot_pe_vs_ebn0(df_combined, "fsk", str(analysis_dir), reporter)
-        plot_paths.append(path)
-        print(f"  ✅ {Path(path).name}")
-    except Exception as e:
-        print(f"  ⚠️  Error generando Pe FSK: {e}")
-    
-    try:
-        # Pb vs Eb/N0 para FSK
-        path = analysis.plot_pb_vs_ebn0(df_combined, "fsk", str(analysis_dir), reporter)
-        plot_paths.append(path)
-        print(f"  ✅ {Path(path).name}")
-    except Exception as e:
-        print(f"  ⚠️  Error generando Pb FSK: {e}")
-    
-    try:
-        # Comparación PSK vs FSK para M=8
-        path = analysis.plot_psk_vs_fsk(df_combined, 8, str(analysis_dir), reporter)
-        plot_paths.append(path)
-        print(f"  ✅ {Path(path).name}")
-    except Exception as e:
-        print(f"  ⚠️  Error generando PSK vs FSK: {e}")
-    
-    try:
-        # Comparación con/sin código para PSK-8
-        path = analysis.plot_coding_comparison(df_combined, "psk", 8, str(analysis_dir), reporter)
-        plot_paths.append(path)
-        print(f"  ✅ {Path(path).name}")
-    except Exception as e:
-        print(f"  ⚠️  Error generando comparación codificación: {e}")
-    
-    # Resumen final
-    print(f"\n{GREEN}[Módulo F]{RESET} Análisis completado exitosamente!")
-    print(f"\n{BLUE}Resumen:{RESET}")
-    print(f"  - Resultados CSV: {csv_path}")
-    print(f"  - Gráficos generados: {len(plot_paths)}")
-    for path in plot_paths:
-        print(f"    • {Path(path).name}")
-    print()
+    for scheme, df in dfs_with_code.items():
+        csv_path = Path(out_prefix) / f"analysis_results_with_code_of_{scheme}.csv"
+        df.to_csv(csv_path, index = False)
+        reporter.append_line(analysis.ENCODER, BLUE, f"Resultados guardados de {scheme} con codificacion en: {csv_path}")
 
-
-def handle_special_modes(args):
-    """
-    Maneja los modos especiales de ejecución (dry-run, huffman-only, analyze-system).
-    Retorna True si se ejecutó alguno de estos modos, False en caso contrario.
-    """
-    if args.dry_run:
-        dry_run(args.path_in, args.out_prefix)
-        print(f"{YELLOW}[TODO]{RESET} Implementar: fuente -> cod_canal.encode -> modulación -> canal -> demodulación -> cod_canal.decode -> fuente\n")
-        return True
-
-    if args.huffman_only:
-        run_huffman_only(args.path_in, args.out_prefix)
-        return True
+    for scheme, df in dfs_without_code.items():
+        csv_path = Path(out_prefix) / f"analysis_results_without_code_of_{scheme}.csv"
+        df.to_csv(csv_path, index = False)
+        reporter.append_line(analysis.ENCODER, BLUE, f"Resultados guardados de {scheme} sin codificacion en: {csv_path}")
     
-    if args.analyze_system:
-        run_system_analysis_mode(args.out_prefix)
-        return True
+    reporter.append_line(analysis.ENCODER, BLUE, "Generando graficos")
+    plot_paths = analysis.generate_all_plots(
+        dfs_without_code = dfs_without_code,
+        dfs_with_code = dfs_with_code,
+        output_dir = out_prefix,
+        reporter = reporter,
+    )
 
-    return False
+    reporter.append_line(analysis.ENCODER, YELLOW, "Análisis completado exitosamente")
+    reporter.append_line(analysis.ENCODER, YELLOW, f"\t- Gráficos generados: {len(plot_paths)}")
+    reporter.append_line(analysis.ENCODER, YELLOW, "\n\t\t".join([ f"- {path}" for path in plot_paths ]))
 
+def run_without_code(path_in: str, out_prefix: str, scheme: modulation.Scheme, M: int, eb_no_db: float):
+    pipe = pipeline.Pipeline([
+        file.File(out_prefix = out_prefix),
+        source.Source(),
+        modulation.Modulation(scheme = scheme, M = M),
+        channel.Channel(eb_n0_db = eb_no_db),
+    ], report.ReporterTerminal(out_prefix))
+
+    path_out = pipe.run(path_in)
+    print(f"{GREEN}[Salida]{RESET} Texto recibido -> {path_out}\n")
+
+def run_complete_mode(path_in: str, out_prefix: str, matriz_g: np.ndarray, scheme: modulation.Scheme, M: int, eb_no_db: float):
+    k, n = matriz_g.shape
+
+    pipe = pipeline.Pipeline([
+        file.File(out_prefix = out_prefix),
+        source.Source(),
+        cod_channel.ChannelCoding(n = n, k = k, matriz_generadora = matriz_g),
+        modulation.Modulation(scheme = scheme, M = M, scale_energy = k / n),
+        channel.Channel(eb_n0_db = eb_no_db),
+    ], report.ReporterTerminal(out_prefix))
+
+    path_out = pipe.run(path_in)
+    print(f"{GREEN}[Salida]{RESET} Texto recibido -> {path_out}\n")
