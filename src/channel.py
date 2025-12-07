@@ -27,7 +27,7 @@ class Channel(EncoderDecoder):
         N0 = 1 / ebn0_lin
         sigma = np.sqrt(N0 / 2)
         noise = rng.normal(0, sigma, sym.shape)
-        reporter.append_line("Canal", BLUE, f"Eb/N0={self.eb_n0_db} dB -> sigma = {sigma}")
+        reporter.append_line("Canal", BLUE, f"Eb/N0={self.eb_n0_db} dB -> sigma = {sigma:.4f}")
         return sym + noise 
 
     def decode(self, sym: np.ndarray, reporter: Reporter) -> np.ndarray:

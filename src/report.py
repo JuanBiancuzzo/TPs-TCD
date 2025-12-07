@@ -1,17 +1,14 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
-from matplotlib.gridspec import SubplotSpec
-from matplotlib.axis import Axis
 import matplotlib.pyplot as plt
 
-from collections import Counter
 from collections.abc import Callable
 
 from math import log2, ceil
 from pathlib import Path
-from typing import List, Any, Tuple
-from utils import GREEN, BLUE, RED, YELLOW, MAGENTA, RESET
+from typing import List, Any
+from utils import BLUE, RESET
 
 # para los tests usé una versión simplificada de Reporter
 ##class Reporter:
@@ -54,6 +51,7 @@ class EmptyReporter(Reporter):
         pass
 
     def graph(self, graph_name: str, axis: np.ndarray, graph: Callable[[np.ndarray], None]) -> None:
+        plt.close()
         pass
 
     def show(self):
@@ -89,6 +87,7 @@ class ReporterTerminal(Reporter):
         graph(axis)
         plt.tight_layout()
         plt.savefig(graph_path)
+        plt.close()
         self.append_line("Reporter", BLUE, f"Gráfico → {graph_path}")
         return graph_path
 
@@ -101,6 +100,23 @@ class ReporterTerminal(Reporter):
             metric_lines.append("\n")
 
         metrics.write_text("\n".join(metric_lines), encoding = self.encoding)
+
+class ReporterAnalysis(Reporter):
+    def report_results(self, file_name: str, headers: List[str], data: List[List[Any]]):
+        return None
+
+    def append_metrics(self, from_encoder: str, lines: str) -> None:
+        return None
+
+    def append_line(self, from_encoder: str, color: str, line: str):
+        print(f"{color}[{from_encoder}]{RESET} {line}")
+
+    def graph(self, graph_name: str, axis: np.ndarray, graph: Callable[[np.ndarray], None]) -> None:
+        plt.close()
+        return None
+
+    def show(self):
+        return None
 
 def _printable(ch: str) -> str:
     # Representación legible para espacios y controles
